@@ -1,0 +1,275 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Icon } from '../../components/common/Icon';
+import { useAiMap, useUpdateProfile } from '../profile/useProfile';
+import { PRESET_TAGS, SWIPE_STYLES } from './onboardingData';
+
+type Method = 'BOTH' | 'TAGS' | 'FREE_TEXT';
+
+export function OnboardingWizard() {
+  const navigate = useNavigate();
+  const aiMap = useAiMap();
+  const updateProfile = useUpdateProfile();
+
+  const [step, setStep] = useState(0);
+  const [method, setMethod] = useState<Method>('BOTH');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(
+    new Set(PRESET_TAGS.filter((t) => t.defaultOn).map((t) => t.label)),
+  );
+  const [extraText, setExtraText] = useState('');
+  const [extraMapped, setExtraMapped] = useState<string[]>([]);
+  const [describeText, setDescribeText] = useState('');
+  const [describeMapped, setDescribeMapped] = useState<string[]>([]);
+  const [swipeIndex, setSwipeIndex] = useState(0);
+  const [likedStyle, setLikedStyle] = useState<string | null>(null);
+
+  const toggleTag = (label: string) => {
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
+  const runAiMap = async (text: string, setMapped: (labels: string[]) => void) => {
+    if (!text.trim()) return;
+    const result = await aiMap.mutateAsync(text);
+    setMapped(result.matched.map((m) => m.label));
+  };
+
+  const handleSwipe = (direction: 'l' | 'r') => {
+    if (direction === 'r') setLikedStyle(SWIPE_STYLES[swipeIndex % SWIPE_STYLES.length].title);
+    setSwipeIndex((i) => i + 1);
+  };
+
+  const finish = () => {
+    const aiMappedLabels = [...new Set([...extraMapped, ...describeMapped])].filter((label) => !selectedTags.has(label));
+    const allTags = [
+      ...[...selectedTags].map((label) => ({ label, source: 'MANUAL' as const })),
+      ...aiMappedLabels.map((label) => ({ label, source: 'AI_MAPPED' as const })),
+    ];
+    updateProfile.mutate(
+      {
+        method,
+        freeText: describeText || undefined,
+        aestheticStyle: likedStyle ?? undefined,
+        tags: allTags,
+      },
+      { onSuccess: () => navigate('/buy/homes') },
+    );
+  };
+
+  const front = SWIPE_STYLES[swipeIndex % SWIPE_STYLES.length];
+  const behind = SWIPE_STYLES[(swipeIndex + 1) % SWIPE_STYLES.length];
+
+  return (
+    <div className="pad">
+      <div className="obp">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className={`obd${i < step ? ' d' : i === step ? ' c' : ''}`} />
+        ))}
+      </div>
+
+      {step === 0 && (
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.4, marginBottom: 5 }}>How do you want to build your profile?</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>Tags, your own words, or both.</div>
+          {(
+            [
+              { key: 'BOTH' as Method, icon: 'ti-sparkles', title: 'Both — recommended', sub: 'Tags plus your own words.' },
+              { key: 'TAGS' as Method, icon: 'ti-tags', title: 'Pick from common preferences', sub: '' },
+              { key: 'FREE_TEXT' as Method, icon: 'ti-writing', title: 'Describe in your own words', sub: 'AI maps it to your profile.' },
+            ]
+          ).map((opt) => (
+            <div key={opt.key} className={`mco${method === opt.key ? ' sel' : ''}`} onClick={() => setMethod(opt.key)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 8,
+                    background: method === opt.key ? 'var(--fill-accent)' : 'var(--surface-0)',
+                    border: method === opt.key ? 'none' : '0.5px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon name={opt.icon} size={14} color={method === opt.key ? '#fff' : 'var(--text-secondary)'} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: method === opt.key ? 'var(--text-accent)' : undefined }}>{opt.title}</div>
+                  {opt.sub && (
+                    <div style={{ fontSize: 11, color: method === opt.key ? 'var(--text-accent)' : 'var(--text-secondary)', opacity: method === opt.key ? 0.8 : 1, marginTop: 2 }}>
+                      {opt.sub}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          <button className="btn btnp btnf" style={{ marginTop: 6 }} onClick={() => setStep(1)}>
+            Continue <Icon name="ti-arrow-right" size={14} />
+          </button>
+        </div>
+      )}
+
+      {step === 1 && (
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 5 }}>What matters most to you?</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>Select anything that resonates.</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
+            {PRESET_TAGS.map((tag) => (
+              <button key={tag.label} className={`tag${selectedTags.has(tag.label) ? ' sb' : ''}`} onClick={() => toggleTag(tag.label)}>
+                {tag.label}
+              </button>
+            ))}
+          </div>
+          {(method === 'BOTH' || method === 'FREE_TEXT') && (
+            <div>
+              <div className="div" />
+              <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Anything not in the list?</p>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>Describe it — AI will map it to your profile.</p>
+              <textarea
+                className="ft2"
+                style={{ minHeight: 65 }}
+                placeholder="e.g. I need an art studio, two large dogs so yard matters a lot..."
+                value={extraText}
+                onChange={(e) => setExtraText(e.target.value)}
+              />
+              <button className="btn btns" style={{ marginTop: 5 }} disabled={aiMap.isPending} onClick={() => runAiMap(extraText, setExtraMapped)}>
+                <Icon name="ti-sparkles" size={13} /> {aiMap.isPending ? 'Mapping…' : 'Map with AI'}
+              </button>
+              {extraMapped.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <div className="slbl">Matched to your profile</div>
+                  {extraMapped.map((label) => (
+                    <span key={label} className="tag mp" style={{ cursor: 'default', fontSize: 11, marginRight: 5 }}>
+                      {label} <Icon name="ti-check" size={9} />
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className="btn btns" onClick={() => setStep(0)}>
+              <Icon name="ti-arrow-left" size={13} />
+            </button>
+            <button className="btn btnp btnf" onClick={() => setStep(2)}>
+              Continue <Icon name="ti-arrow-right" size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 5 }}>Tell us in your own words</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>
+            What does your ideal home feel like? What's non-negotiable?
+          </div>
+          <textarea
+            className="ft2"
+            style={{ minHeight: 100 }}
+            placeholder="e.g. I work from home so I need a real office. I love to cook and entertain so a big open kitchen is huge..."
+            value={describeText}
+            onChange={(e) => setDescribeText(e.target.value)}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>AI maps your words to traits</span>
+            <button className="btn btns btnp" disabled={aiMap.isPending} onClick={() => runAiMap(describeText, setDescribeMapped)}>
+              <Icon name="ti-sparkles" size={13} /> {aiMap.isPending ? 'Analyzing…' : 'Analyze'}
+            </button>
+          </div>
+          {describeMapped.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div className="slbl">Matched to your profile</div>
+              {describeMapped.map((label) => (
+                <span key={label} className="tag mp" style={{ cursor: 'default', fontSize: 11, marginRight: 5 }}>
+                  {label} <Icon name="ti-check" size={9} />
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button className="btn btns" onClick={() => setStep(1)}>
+              <Icon name="ti-arrow-left" size={13} />
+            </button>
+            <button className="btn btnp btnf" onClick={() => setStep(3)}>
+              Continue <Icon name="ti-arrow-right" size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 5 }}>Which kitchen feels like you?</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>Swipe right to like, left to pass.</div>
+          <div className="sw-stack">
+            <div className="sw-c behind">
+              <div className="sw-img" style={{ background: behind.bg }}>
+                {behind.emoji}
+              </div>
+              <div className="sw-lbl">
+                <p>{behind.title}</p>
+                <span>{behind.subtitle}</span>
+              </div>
+            </div>
+            <div className="sw-c front">
+              <div className="sw-img" style={{ background: front.bg }}>
+                {front.emoji}
+              </div>
+              <div className="sw-lbl">
+                <p>{front.title}</p>
+                <span>{front.subtitle}</span>
+              </div>
+            </div>
+          </div>
+          <div className="sw-btns">
+            <button className="sw-btn sno" onClick={() => handleSwipe('l')}>
+              <Icon name="ti-x" size={18} />
+            </button>
+            <button className="sw-btn sye" onClick={() => handleSwipe('r')}>
+              <Icon name="ti-heart" size={18} />
+            </button>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
+            {Math.min(swipeIndex + 1, 4)} of 4
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btns" onClick={() => setStep(2)}>
+              <Icon name="ti-arrow-left" size={13} />
+            </button>
+            <button className="btn btnp btnf" onClick={() => setStep(4)}>
+              Continue <Icon name="ti-arrow-right" size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div style={{ textAlign: 'center', padding: '14px 0' }}>
+          <Icon name="ti-check" size={40} color="#1D9E75" />
+          <div style={{ fontSize: 18, fontWeight: 500, marginTop: 8, marginBottom: 6 }}>Profile ready</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            Scores and visit prompts are now tailored to you.
+          </div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
+            {[...selectedTags].slice(0, 3).map((label) => (
+              <span className="badge bb" key={label}>
+                {label}
+              </span>
+            ))}
+            {likedStyle && <span className="badge bg">{likedStyle}</span>}
+          </div>
+          <button className="btn btnp btnf" disabled={updateProfile.isPending} onClick={finish}>
+            {updateProfile.isPending ? 'Saving…' : 'Start exploring homes'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

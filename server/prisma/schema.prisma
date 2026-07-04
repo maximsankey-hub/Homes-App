@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PropertyStatus {
+  NOT_VISITED
+  VISITED
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+  VOICE
+}
+
+enum RoomFeeling {
+  EXCITED
+  CALM
+  UNCERTAIN
+  OVERWHELMED
+  INSPIRED
+}
+
+enum IdeaType {
+  COSMETIC
+  STRUCTURAL
+}
+
+enum DemandLevel {
+  HIGH
+  MODERATE
+  LOW
+}
+
+enum ScorerRole {
+  SELF
+  PARTNER
+}
+
+enum ProfileMethod {
+  TAGS
+  FREE_TEXT
+  BOTH
+}
+
+enum TagSource {
+  MANUAL
+  AI_MAPPED
+}
+
+enum PlaceCategory {
+  GROCERY
+  PARKS
+  SCHOOLS
+  COFFEE
+  GYMS
+  FITNESS
+  RESTAURANTS
+  OTHER
+}
+
+enum CompDiffType {
+  ABOVE
+  BELOW
+  WITHIN
+}
+
+model Property {
+  id            String         @id @default(cuid())
+  address       String
+  city          String
+  state         String
+  listingPrice  Int
+  sqft          Int
+  beds          Int
+  baths         Int
+  yearBuilt     Int?
+  status        PropertyStatus @default(NOT_VISITED)
+  lastVisitedAt DateTime?
+
+  walkScore    Int?
+  transitScore Int?
+  bikeScore    Int?
+
+  safetyScore     Int?
+  noiseScore      Int?
+  greenSpaceScore Int?
+  sidewalkScore   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rooms        Room[]
+  media        Media[]
+  renovations  RenovationIdea[]
+  nearbyPlaces NearbyPlace[]
+  scorerNotes  ScorerNote[]
+}
+
+model ScorerNote {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  scorerId   String
+  scorer     Scorer   @relation(fields: [scorerId], references: [id])
+  text       String
+  updatedAt  DateTime @updatedAt
+
+  @@unique([propertyId, scorerId])
+}
+
+model Room {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name       String
+  icon       String
+  createdAt  DateTime @default(now())
+
+  scores RoomScore[]
+  media  Media[]
+
+  @@unique([propertyId, name])
+}
+
+model Scorer {
+  id        String     @id @default(cuid())
+  name      String
+  role      ScorerRole
+  initials  String
+  colorHex  String
+  contact   String?
+  createdAt DateTime   @default(now())
+
+  scores RoomScore[]
+  notes  ScorerNote[]
+}
+
+model RoomScore {
+  id        String      @id @default(cuid())
+  roomId    String
+  room      Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  scorerId  String
+  scorer    Scorer      @relation(fields: [scorerId], references: [id])
+  layout    Int
+  storage   Int
+  light     Int
+  vibe      Int
+  feeling   RoomFeeling
+  note      String?
+  createdAt DateTime    @default(now())
+
+  @@unique([roomId, scorerId])
+}
+
+model Media {
+  id         String    @id @default(cuid())
+  propertyId String
+  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomId     String?
+  room       Room?     @relation(fields: [roomId], references: [id])
+  type       MediaType
+  filePath   String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime  @default(now())
+}
+
+model RenovationIdea {
+  id             String   @id @default(cuid())
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  title          String
+  room           String
+  type           IdeaType
+  costLow        Int
+  costHigh       Int
+  feasibility    Int
+  need           String?
+  constraintNote String?
+  createdAt      DateTime @default(now())
+}
+
+model NearbyPlace {
+  id           String        @id @default(cuid())
+  propertyId   String
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name         String
+  category     PlaceCategory
+  distanceText String
+  score        Float
+  icon         String
+  iconColor    String
+  iconBg       String
+}
+
+model PreferenceProfile {
+  id              String        @id @default(cuid())
+  method          ProfileMethod @default(BOTH)
+  freeText        String?
+  weightEmotional Int           @default(5)
+  weightStorage   Int           @default(5)
+  weightLight     Int           @default(5)
+  aestheticStyle  String?
+  updatedAt       DateTime      @updatedAt
+
+  tags PreferenceTag[]
+}
+
+model PreferenceTag {
+  id        String            @id @default(cuid())
+  profileId String
+  profile   PreferenceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  label     String
+  source    TagSource         @default(MANUAL)
+}
+
+model Listing {
+  id                   String   @id @default(cuid())
+  address              String
+  city                 String
+  state                String
+  listPrice            Int
+  sqft                 Int
+  beds                 Int
+  baths                Int
+  estValueLow          Int
+  estValueHigh         Int
+  confidenceScore      Float
+  avgDaysOnMarket      Int
+  pricePerSqft         Int
+  buyerEmotionalAvg    Float
+  buyerFunctionalAvg   Float
+  marketStatus         String
+  buyerViewsCount      Int
+  walkabilityScore     Float
+  parkAccessScore      Float
+  privacyScore         Float
+  schoolQualityScore   Float
+  noiseLevelScore      Float
+  buyerPriorityLight   Float
+  buyerPriorityKitchen Float
+  buyerPriorityStorage Float
+  buyerPriorityLayout  Float
+  fitHosting           Float
+  fitWFH               Float
+  fitOrganization      Float
+  fitFamily            Float
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  comps        MarketComp[]
+  roomScores   ListingRoomScore[]
+  improvements ImprovementIdea[]
+}
+
+model MarketComp {
+  id         String       @id @default(cuid())
+  listingId  String
+  listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  address    String
+  sqft       Int
+  saleDate   DateTime
+  price      Int
+  diffType   CompDiffType
+  diffAmount Int
+  note       String?
+}
+
+model ListingRoomScore {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  roomName  String
+  score     Float
+}
+
+model ImprovementIdea {
+  id              String      @id @default(cuid())
+  listingId       String
+  listing         Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  title           String
+  demandLevel     DemandLevel
+  type            IdeaType
+  valueLift       Int
+  costLow         Int
+  costHigh        Int
+  feasibility     Int
+  supportingNote1 String?
+  supportingNote2 String?
+  createdAt       DateTime    @default(now())
+}

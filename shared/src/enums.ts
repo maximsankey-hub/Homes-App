@@ -1,0 +1,10 @@
+export type PropertyStatus = 'NOT_VISITED' | 'VISITED';
+export type MediaType = 'PHOTO' | 'VIDEO' | 'VOICE';
+export type RoomFeeling = 'EXCITED' | 'CALM' | 'UNCERTAIN' | 'OVERWHELMED' | 'INSPIRED';
+export type IdeaType = 'COSMETIC' | 'STRUCTURAL';
+export type DemandLevel = 'HIGH' | 'MODERATE' | 'LOW';
+export type ScorerRole = 'SELF' | 'PARTNER';
+export type ProfileMethod = 'TAGS' | 'FREE_TEXT' | 'BOTH';
+export type TagSource = 'MANUAL' | 'AI_MAPPED';
+export type PlaceCategory = 'GROCERY' | 'PARKS' | 'SCHOOLS' | 'COFFEE' | 'GYMS' | 'FITNESS' | 'RESTAURANTS' | 'OTHER';
+export type CompDiffType = 'ABOVE' | 'BELOW' | 'WITHIN';
