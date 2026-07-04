@@ -1,12 +1,8 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
+import { supabase, MEDIA_BUCKET } from '../src/lib/supabase.js';
 
 const prisma = new PrismaClient();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.resolve(__dirname, '../../uploads');
 
 // Minimal valid 1x1 PNG, used as placeholder bytes for all seeded media (photo/video/voice).
 const PLACEHOLDER_PNG = Buffer.from(
@@ -14,17 +10,15 @@ const PLACEHOLDER_PNG = Buffer.from(
   'base64',
 );
 
-let mediaCounter = 0;
-function writePlaceholderMedia(): { filePath: string; sizeBytes: number } {
-  mediaCounter += 1;
-  const fileName = `seed-${mediaCounter}.png`;
-  fs.writeFileSync(path.join(uploadsDir, fileName), PLACEHOLDER_PNG);
-  return { filePath: `/uploads/${fileName}`, sizeBytes: PLACEHOLDER_PNG.length };
+async function uploadPlaceholderMedia(): Promise<{ filePath: string; sizeBytes: number }> {
+  const key = `seed/${crypto.randomUUID()}.png`;
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(key, PLACEHOLDER_PNG, { contentType: 'image/png' });
+  if (error) throw new Error(`Seed media upload failed: ${error.message}`);
+  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(key);
+  return { filePath: data.publicUrl, sizeBytes: PLACEHOLDER_PNG.length };
 }
 
 async function main() {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-
   // Clear existing data (idempotent re-seed)
   await prisma.media.deleteMany();
   await prisma.roomScore.deleteMany();
@@ -118,19 +112,19 @@ async function main() {
   });
 
   for (let i = 0; i < 3; i++) {
-    const { filePath, sizeBytes } = writePlaceholderMedia();
+    const { filePath, sizeBytes } = await uploadPlaceholderMedia();
     await prisma.media.create({
       data: { propertyId: elm.id, roomId: elmKitchen.id, type: 'PHOTO', filePath, mimeType: 'image/png', sizeBytes },
     });
   }
   for (let i = 0; i < 2; i++) {
-    const { filePath, sizeBytes } = writePlaceholderMedia();
+    const { filePath, sizeBytes } = await uploadPlaceholderMedia();
     await prisma.media.create({
       data: { propertyId: elm.id, roomId: elmLiving.id, type: 'PHOTO', filePath, mimeType: 'image/png', sizeBytes },
     });
   }
   for (let i = 0; i < 2; i++) {
-    const { filePath, sizeBytes } = writePlaceholderMedia();
+    const { filePath, sizeBytes } = await uploadPlaceholderMedia();
     await prisma.media.create({
       data: { propertyId: elm.id, roomId: null, type: 'PHOTO', filePath, mimeType: 'image/png', sizeBytes },
     });
@@ -265,7 +259,7 @@ async function main() {
   });
 
   for (const roomId of [oakKitchen.id, oakLiving.id, oakBed.id]) {
-    const { filePath, sizeBytes } = writePlaceholderMedia();
+    const { filePath, sizeBytes } = await uploadPlaceholderMedia();
     await prisma.media.create({ data: { propertyId: oak.id, roomId, type: 'PHOTO', filePath, mimeType: 'image/png', sizeBytes } });
   }
 
