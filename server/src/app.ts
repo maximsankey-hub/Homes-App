@@ -11,6 +11,8 @@ import { nearbyRouter } from './routes/nearby.js';
 import { compareRouter } from './routes/compare.js';
 import { listingRouter } from './routes/listing.js';
 import { neighborhoodScoreRouter } from './routes/neighborhoodScore.js';
+import { householdRouter } from './routes/household.js';
+import { requireAuth, requireHousehold } from './middleware/auth.js';
 import { clientDistDir } from './lib/paths.js';
 
 export const app = express();
@@ -21,6 +23,12 @@ app.use(express.json());
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
+
+app.use('/api', requireAuth);
+// POST /household/join runs before a household membership exists, so it's mounted
+// ahead of the blanket requireHousehold below (GET /household applies it itself).
+app.use('/api/household', householdRouter);
+app.use('/api', requireHousehold);
 
 // Mounted before propertiesRouter's GET /:id so "/compare" isn't swallowed as an id param.
 app.use('/api/properties/compare', compareRouter);

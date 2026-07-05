@@ -72,8 +72,21 @@ enum CompDiffType {
   WITHIN
 }
 
+model Household {
+  id         String   @id @default(cuid())
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+
+  members    Scorer[]
+  properties Property[]
+  profile    PreferenceProfile?
+  listing    Listing?
+}
+
 model Property {
   id            String         @id @default(cuid())
+  householdId   String
+  household     Household      @relation(fields: [householdId], references: [id])
   isDemo        Boolean        @default(false)
   address       String
   city          String
@@ -133,13 +146,16 @@ model Room {
 }
 
 model Scorer {
-  id        String     @id @default(cuid())
-  name      String
-  role      ScorerRole
-  initials  String
-  colorHex  String
-  contact   String?
-  createdAt DateTime   @default(now())
+  id              String     @id @default(cuid())
+  householdId     String
+  household       Household  @relation(fields: [householdId], references: [id])
+  supabaseUserId  String?    @unique
+  name            String
+  role            ScorerRole
+  initials        String
+  colorHex        String
+  contact         String?
+  createdAt       DateTime   @default(now())
 
   scores             RoomScore[]
   notes              ScorerNote[]
@@ -225,6 +241,8 @@ model NearbyPlace {
 
 model PreferenceProfile {
   id              String        @id @default(cuid())
+  householdId     String        @unique
+  household       Household     @relation(fields: [householdId], references: [id])
   method          ProfileMethod @default(BOTH)
   freeText        String?
   weightEmotional Int           @default(5)
@@ -245,7 +263,9 @@ model PreferenceTag {
 }
 
 model Listing {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
+  householdId          String    @unique
+  household            Household @relation(fields: [householdId], references: [id])
   address              String
   city                 String
   state                String

@@ -8,6 +8,12 @@ import { supabase, MEDIA_BUCKET } from '../lib/supabase.js';
 export const mediaRouter = Router();
 
 mediaRouter.post('/properties/:id/media', upload.single('file'), async (req, res) => {
+  const owned = await prisma.property.findFirst({ where: { id: req.params.id, householdId: req.householdId } });
+  if (!owned) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
   const file = req.file;
   if (!file) {
     res.status(400).json({ error: 'file is required' });
@@ -48,6 +54,14 @@ mediaRouter.post('/properties/:id/media', upload.single('file'), async (req, res
 });
 
 mediaRouter.patch('/media/:mediaId', async (req, res) => {
+  const owned = await prisma.media.findFirst({
+    where: { id: req.params.mediaId, property: { householdId: req.householdId } },
+  });
+  if (!owned) {
+    res.status(404).json({ error: 'Media not found' });
+    return;
+  }
+
   const { roomId } = req.body ?? {};
   const media = await prisma.media.update({
     where: { id: req.params.mediaId },
@@ -57,6 +71,13 @@ mediaRouter.patch('/media/:mediaId', async (req, res) => {
 });
 
 mediaRouter.delete('/media/:mediaId', async (req, res) => {
+  const owned = await prisma.media.findFirst({
+    where: { id: req.params.mediaId, property: { householdId: req.householdId } },
+  });
+  if (!owned) {
+    res.status(404).json({ error: 'Media not found' });
+    return;
+  }
   await prisma.media.delete({ where: { id: req.params.mediaId } });
   res.status(204).end();
 });

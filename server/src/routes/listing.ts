@@ -5,11 +5,12 @@ import { getListingDashboardInsights } from '../services/aiInsights.js';
 
 export const listingRouter = Router();
 
-async function getOrCreateListing() {
-  const existing = await prisma.listing.findFirst();
+async function getOrCreateListing(householdId: string) {
+  const existing = await prisma.listing.findFirst({ where: { householdId } });
   if (existing) return existing;
   return prisma.listing.create({
     data: {
+      householdId,
       address: '',
       city: '',
       state: '',
@@ -43,8 +44,8 @@ async function getOrCreateListing() {
   });
 }
 
-listingRouter.get('/', async (_req, res) => {
-  const listing = await getOrCreateListing();
+listingRouter.get('/', async (req, res) => {
+  const listing = await getOrCreateListing(req.householdId!);
   const topImprovement = await prisma.improvementIdea.findFirst({
     where: { listingId: listing.id },
     orderBy: { valueLift: 'desc' },
@@ -74,8 +75,8 @@ listingRouter.get('/', async (_req, res) => {
   res.json(result);
 });
 
-listingRouter.get('/market', async (_req, res) => {
-  const listing = await getOrCreateListing();
+listingRouter.get('/market', async (req, res) => {
+  const listing = await getOrCreateListing(req.householdId!);
   const comps = await prisma.marketComp.findMany({ where: { listingId: listing.id }, orderBy: { saleDate: 'desc' } });
 
   const tradeoffs = [
@@ -130,8 +131,8 @@ listingRouter.get('/market', async (_req, res) => {
   res.json(result);
 });
 
-listingRouter.get('/buyers', async (_req, res) => {
-  const listing = await getOrCreateListing();
+listingRouter.get('/buyers', async (req, res) => {
+  const listing = await getOrCreateListing(req.householdId!);
   const roomScores = await prisma.listingRoomScore.findMany({ where: { listingId: listing.id } });
 
   const nonOverall = roomScores.filter((r) => r.roomName !== 'Overall');
@@ -172,8 +173,8 @@ listingRouter.get('/buyers', async (_req, res) => {
   res.json(result);
 });
 
-listingRouter.get('/improvements', async (_req, res) => {
-  const listing = await getOrCreateListing();
+listingRouter.get('/improvements', async (req, res) => {
+  const listing = await getOrCreateListing(req.householdId!);
   const ideas = await prisma.improvementIdea.findMany({ where: { listingId: listing.id }, orderBy: { valueLift: 'desc' } });
 
   const totalLow = ideas.reduce((sum, i) => sum + i.costLow, 0);
@@ -203,7 +204,7 @@ listingRouter.get('/improvements', async (_req, res) => {
 });
 
 listingRouter.post('/improvements', async (req, res) => {
-  const listing = await getOrCreateListing();
+  const listing = await getOrCreateListing(req.householdId!);
   const { title, demandLevel, type, valueLift, costLow, costHigh, feasibility } = req.body ?? {};
   if (!title) {
     res.status(400).json({ error: 'title is required' });
@@ -227,6 +228,13 @@ listingRouter.post('/improvements', async (req, res) => {
 });
 
 listingRouter.delete('/improvements/:id', async (req, res) => {
+  const owned = await prisma.improvementIdea.findFirst({
+    where: { id: req.params.id, listing: { householdId: req.householdId } },
+  });
+  if (!owned) {
+    res.status(404).json({ error: 'Improvement idea not found' });
+    return;
+  }
   await prisma.improvementIdea.delete({ where: { id: req.params.id } });
   res.status(204).end();
 });

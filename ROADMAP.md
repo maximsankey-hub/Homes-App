@@ -10,7 +10,7 @@ A running backlog of features and fixes. Pick items off this list to build next;
 - [ ] **Room-specific aesthetic photos** — the onboarding swipe step only asks about kitchen style (4 emoji placeholders). Add swipe decks for bedrooms, bathrooms, backyards, etc., ideally with real photos instead of emoji.
 - [x] **Custom room names in Visit mode** — right now room choice is a fixed list (Kitchen, Living room, Primary bed, Backyard, Garage, Office). Add a "type your own" option, plus more presets: Basement, Bathroom, Secondary Bedroom.
 - [x] **Photo capture on the scoring screen** — Visit mode's step 1 (the 4 sliders + quick-thoughts note) has no capture buttons; only the room-picker step and the reflection step do. Add capture there too.
-- [ ] **Multi-user accounts + authentication** — biggest item on this list. See "Accounts & Auth" section below for what this actually involves.
+- [x] **Multi-user accounts + authentication** — biggest item on this list. See "Accounts & Auth" section below for what this actually involves.
 
 ## Bugs worth fixing
 
@@ -18,17 +18,18 @@ A running backlog of features and fixes. Pick items off this list to build next;
 - [x] **No way to edit a property** — once added, a property's address/price/sqft/etc. can't be corrected, only re-entered from scratch.
 - [x] **No way to delete anything** — properties, renovation ideas, improvement ideas, and media are all add-only. A typo or duplicate sticks around forever.
 - [x] **Reseeding wipes everything, not just demo data** — running the seed script deletes *all* properties/scores/media, including anything you've genuinely added, with no "reset demo only" option. Fixed via a `Property.isDemo` flag and a new `npm run db:seed:demo` command that only replaces the 3 seeded demo properties (and untouched profile/listing/scorers if they already exist).
-- [ ] **"Invite a partner" doesn't let the partner actually do anything** — it creates a named scorer, but there's no way for that person to log in and submit their own room scores (ties directly into the Accounts & Auth item).
+- [x] **"Invite a partner" doesn't let the partner actually do anything** — it creates a named scorer, but there's no way for that person to log in and submit their own room scores (ties directly into the Accounts & Auth item). Fixed alongside real auth: the household's invite code is now enterable at signup, and a real second account joins as PARTNER and scores as themselves.
 - [x] **Starting a new visit always defaults to the Elm St house** — there's no way to pick which property you're visiting; add a property selector when starting a visit so it isn't hardcoded/defaulted.
 - [x] **New room scores default to odd pre-populated numbers instead of neutral 5/10** — Visit mode's sliders for a never-scored room started at (7, 5, 8, 9); now default to a neutral 5 across the board.
 
-## Accounts & Auth (the big one)
+## Accounts & Auth (the big one) — shipped
 
-Real multi-user support touches a lot of the app:
-- Sign-up/login (Supabase Auth would be a natural fit since you're already on Supabase — email/password or magic link, minimal extra infrastructure)
-- Each user gets their own properties/profile/listing instead of the current single-household model
-- "Invite a partner" becomes a real invite — the partner logs in, joins your household/property, and scores rooms as themselves
-- Decide: fully separate households, or a shared "household" concept multiple people belong to?
+Real multi-user support, built as a shared-household model:
+- Email + password auth via Supabase Auth (client talks to Supabase directly; the API verifies the bearer token per request)
+- A `Household` now owns `Property`/`PreferenceProfile`/`Listing`; every route is scoped by the logged-in user's household
+- Signing up with no invite code creates a brand-new empty household; signing up with an invite code (shown in the Drawer, copyable) joins an existing one as SELF or PARTNER
+- Your original account (matching `LEGACY_HOUSEHOLD_OWNER_EMAIL` in `server/.env`) automatically inherits the pre-auth demo/real data on first signup
+- Not included yet: password reset, editing your display name/color after joining, and Postgres RLS (not needed — the API is the only thing that ever talks to Postgres, so it's already the authorization boundary)
 
 ## Newly requested items
 

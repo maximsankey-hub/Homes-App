@@ -29,7 +29,7 @@ export function PartnerTab() {
           <div style={{ fontSize: 10, fontWeight: 500, color: '#3C3489', marginBottom: 4 }}>Partner</div>
           <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--text-accent)' }}>{data.partner?.score ?? '—'}</div>
           <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-            {data.partner ? `Feeling: ${data.partner.feelingLabel}` : 'Not invited yet'}
+            {data.partner ? `Feeling: ${data.partner.feelingLabel}` : data.partnerJoined ? 'Hasn’t scored yet' : 'Not invited yet'}
           </div>
         </div>
       </div>
@@ -105,6 +105,11 @@ export function PartnerTab() {
             </div>
           )}
         </>
+      ) : data.partnerJoined ? (
+        <div className="card" style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>
+          <Icon name="ti-clipboard-check" size={22} />
+          <div style={{ marginTop: 6 }}>Your partner has joined but hasn't scored any rooms here yet.</div>
+        </div>
       ) : (
         <button className="btn btnf btns" onClick={() => openModal('invitePartner', { propertyId })}>
           <Icon name="ti-user-plus" size={14} /> Invite a partner

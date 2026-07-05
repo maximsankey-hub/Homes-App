@@ -21,6 +21,7 @@ function mostCommonFeeling(scores: ScoredRoomWithMeta[]): string {
 export interface PartnerComparisonResult {
   self: { score: number; feelingLabel: string };
   partner: { score: number; feelingLabel: string; note: string | null } | null;
+  partnerJoined: boolean;
   factors: { label: string; selfValue: number; partnerValue: number; agree: boolean }[];
   agreement: { label: string; agree: boolean; note: string }[];
 }
@@ -30,11 +31,12 @@ export function buildPartnerComparison(
   partnerScores: ScoredRoomWithMeta[],
   roomNamesById: Map<string, string>,
   partnerNote: string | null,
+  partnerJoined: boolean,
 ): PartnerComparisonResult {
   const self = { score: overallScore(selfScores), feelingLabel: mostCommonFeeling(selfScores) };
 
   if (partnerScores.length === 0) {
-    return { self, partner: null, factors: [], agreement: [] };
+    return { self, partner: null, partnerJoined, factors: [], agreement: [] };
   }
 
   const partner = { score: overallScore(partnerScores), feelingLabel: mostCommonFeeling(partnerScores), note: partnerNote };
@@ -62,5 +64,5 @@ export function buildPartnerComparison(
     note: f.agree ? 'Both agree' : `You: ${f.selfValue} · Partner: ${f.partnerValue}`,
   }));
 
-  return { self, partner, factors, agreement };
+  return { self, partner, partnerJoined, factors, agreement };
 }

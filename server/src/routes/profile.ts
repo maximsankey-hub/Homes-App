@@ -20,23 +20,23 @@ const KEYWORD_MAP: Record<string, string> = {
   storage: 'Need visible storage',
 };
 
-async function getOrCreateProfile() {
-  const existing = await prisma.preferenceProfile.findFirst({ include: { tags: true } });
+async function getOrCreateProfile(householdId: string) {
+  const existing = await prisma.preferenceProfile.findFirst({ where: { householdId }, include: { tags: true } });
   if (existing) return existing;
   return prisma.preferenceProfile.create({
-    data: { method: 'BOTH', weightEmotional: 5, weightStorage: 5, weightLight: 5 },
+    data: { householdId, method: 'BOTH', weightEmotional: 5, weightStorage: 5, weightLight: 5 },
     include: { tags: true },
   });
 }
 
-profileRouter.get('/', async (_req, res) => {
-  const profile = await getOrCreateProfile();
-  const patterns = await getPreferencePatterns();
+profileRouter.get('/', async (req, res) => {
+  const profile = await getOrCreateProfile(req.householdId!);
+  const patterns = await getPreferencePatterns(req.scorerId!);
   res.json({ ...profile, patterns });
 });
 
 profileRouter.put('/', async (req, res) => {
-  const profile = await getOrCreateProfile();
+  const profile = await getOrCreateProfile(req.householdId!);
   const { method, freeText, weightEmotional, weightStorage, weightLight, aestheticStyle, tags } = req.body ?? {};
 
   const updated = await prisma.preferenceProfile.update({

@@ -9,9 +9,9 @@ const FACTOR_LABELS: Record<'layout' | 'storage' | 'light' | 'vibe', string> = {
   vibe: 'Vibe / feel',
 };
 
-export async function getPreferencePatterns(): Promise<PatternInsight[]> {
+export async function getPreferencePatterns(scorerId: string): Promise<PatternInsight[]> {
   const scores = await prisma.roomScore.findMany({
-    where: { scorer: { role: 'SELF' } },
+    where: { scorerId },
     include: { room: true },
   });
 

@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { AppShell } from '../components/chrome/AppShell';
+import { LoginScreen } from '../features/auth/LoginScreen';
+import { SignupScreen } from '../features/auth/SignupScreen';
 import { CompareScreen } from '../features/compare/CompareScreen';
 import { HomeDetailLayout } from '../features/homeDetail/HomeDetailLayout';
 import { NearbyTab } from '../features/homeDetail/NearbyTab';
@@ -16,35 +18,43 @@ import { Market } from '../features/seller/Market';
 import { Buyers } from '../features/seller/Buyers';
 import { Improve } from '../features/seller/Improve';
 import { ModeRedirect } from './ModeRedirect';
+import { RequireAuth } from './RequireAuth';
 import { VisitEntry } from './VisitEntry';
 
 export const router = createBrowserRouter([
+  { path: '/login', element: <LoginScreen /> },
+  { path: '/signup', element: <SignupScreen /> },
   {
-    path: '/',
-    element: <AppShell />,
+    element: <RequireAuth />,
     children: [
-      { index: true, element: <ModeRedirect /> },
-      { path: 'buy/homes', element: <HomesList /> },
       {
-        path: 'buy/homes/:propertyId',
-        element: <HomeDetailLayout />,
+        path: '/',
+        element: <AppShell />,
         children: [
-          { index: true, element: <Overview /> },
-          { path: 'visit', element: <VisitTab /> },
-          { path: 'partner', element: <PartnerTab /> },
-          { path: 'reno', element: <RenoTab /> },
-          { path: 'nearby', element: <NearbyTab /> },
+          { index: true, element: <ModeRedirect /> },
+          { path: 'buy/homes', element: <HomesList /> },
+          {
+            path: 'buy/homes/:propertyId',
+            element: <HomeDetailLayout />,
+            children: [
+              { index: true, element: <Overview /> },
+              { path: 'visit', element: <VisitTab /> },
+              { path: 'partner', element: <PartnerTab /> },
+              { path: 'reno', element: <RenoTab /> },
+              { path: 'nearby', element: <NearbyTab /> },
+            ],
+          },
+          { path: 'buy/visit', element: <VisitEntry /> },
+          { path: 'buy/visit/:propertyId', element: <VisitModeFlow /> },
+          { path: 'buy/compare', element: <CompareScreen /> },
+          { path: 'buy/profile', element: <ProfileScreen /> },
+          { path: 'buy/onboarding', element: <OnboardingWizard /> },
+          { path: 'sell/dashboard', element: <Dashboard /> },
+          { path: 'sell/market', element: <Market /> },
+          { path: 'sell/buyers', element: <Buyers /> },
+          { path: 'sell/improve', element: <Improve /> },
         ],
       },
-      { path: 'buy/visit', element: <VisitEntry /> },
-      { path: 'buy/visit/:propertyId', element: <VisitModeFlow /> },
-      { path: 'buy/compare', element: <CompareScreen /> },
-      { path: 'buy/profile', element: <ProfileScreen /> },
-      { path: 'buy/onboarding', element: <OnboardingWizard /> },
-      { path: 'sell/dashboard', element: <Dashboard /> },
-      { path: 'sell/market', element: <Market /> },
-      { path: 'sell/buyers', element: <Buyers /> },
-      { path: 'sell/improve', element: <Improve /> },
     ],
   },
 ]);

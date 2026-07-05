@@ -19,11 +19,25 @@ async function uploadPlaceholderMedia(): Promise<{ filePath: string; sizeBytes: 
 }
 
 const DEMO_ONLY = process.argv.includes('--demo-only');
+const LEGACY_INVITE_CODE = process.env.LEGACY_HOUSEHOLD_INVITE_CODE ?? 'HOME-OWNER';
 
-async function upsertScorer(name: string, role: 'SELF' | 'PARTNER', initials: string, colorHex: string) {
-  const existing = await prisma.scorer.findFirst({ where: { name, role } });
+/**
+ * The one household this seed data belongs to. Real accounts attach to it via
+ * the /household/join "claim" flow (see server/src/routes/household.ts) — the
+ * fixed invite code is what lets both sides agree on which row that is.
+ */
+async function getOrCreateLegacyHousehold() {
+  return prisma.household.upsert({
+    where: { inviteCode: LEGACY_INVITE_CODE },
+    update: {},
+    create: { inviteCode: LEGACY_INVITE_CODE },
+  });
+}
+
+async function upsertScorer(householdId: string, name: string, role: 'SELF' | 'PARTNER', initials: string, colorHex: string) {
+  const existing = await prisma.scorer.findFirst({ where: { householdId, name, role } });
   if (existing) return existing;
-  return prisma.scorer.create({ data: { name, role, initials, colorHex } });
+  return prisma.scorer.create({ data: { householdId, name, role, initials, colorHex } });
 }
 
 async function main() {
@@ -32,7 +46,9 @@ async function main() {
     // leaves any properties, scorers, or profile/listing customization added since.
     await prisma.property.deleteMany({ where: { isDemo: true } });
   } else {
-    // Clear existing data (idempotent full re-seed)
+    // Clear existing data (idempotent full re-seed). Real accounts lose their household
+    // membership here too — they just need to call POST /household/join again on next
+    // login, which re-claims this same household (same fixed invite code) automatically.
     await prisma.media.deleteMany();
     await prisma.roomScore.deleteMany();
     await prisma.room.deleteMany();
@@ -47,14 +63,17 @@ async function main() {
     await prisma.improvementIdea.deleteMany();
     await prisma.listing.deleteMany();
     await prisma.scorerNote.deleteMany();
+    await prisma.household.deleteMany();
   }
 
-  const jordan = await upsertScorer('Jordan', 'SELF', 'JL', '#1D9E75');
-  const morgan = await upsertScorer('Morgan', 'PARTNER', 'MK', '#3C3489');
+  const household = await getOrCreateLegacyHousehold();
+  const jordan = await upsertScorer(household.id, 'Jordan', 'SELF', 'JL', '#1D9E75');
+  const morgan = await upsertScorer(household.id, 'Morgan', 'PARTNER', 'MK', '#3C3489');
 
   // ── 2847 Elm Street ──
   const elm = await prisma.property.create({
     data: {
+      householdId: household.id,
       isDemo: true,
       address: '2847 Elm Street',
       city: 'Denver',
@@ -181,6 +200,7 @@ async function main() {
   // ── 512 Maple Avenue ──
   await prisma.property.create({
     data: {
+      householdId: household.id,
       isDemo: true,
       address: '512 Maple Avenue',
       city: 'Denver',
@@ -225,6 +245,7 @@ async function main() {
   // ── 1190 Oak Lane ──
   const oak = await prisma.property.create({
     data: {
+      householdId: household.id,
       isDemo: true,
       address: '1190 Oak Lane',
       city: 'Lakewood',
@@ -299,9 +320,10 @@ async function main() {
   });
 
   // ── Preference profile ── only seed if none exists yet, so a demo-only reset never overwrites real answers.
-  if (!(await prisma.preferenceProfile.findFirst())) {
+  if (!(await prisma.preferenceProfile.findFirst({ where: { householdId: household.id } }))) {
     await prisma.preferenceProfile.create({
       data: {
+        householdId: household.id,
         method: 'BOTH',
         weightEmotional: 8,
         weightStorage: 9,
@@ -322,9 +344,10 @@ async function main() {
   }
 
   // ── Seller listing (the household's own home) ── only seed if none exists yet, for the same reason as the profile above.
-  if (!(await prisma.listing.findFirst())) {
+  if (!(await prisma.listing.findFirst({ where: { householdId: household.id } }))) {
     await prisma.listing.create({
       data: {
+        householdId: household.id,
         address: '2847 Elm Street',
         city: 'Denver',
         state: 'CO',

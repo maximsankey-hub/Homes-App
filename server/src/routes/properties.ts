@@ -21,19 +21,20 @@ function buildBadges(status: string, score: number | null, roomCount: number, me
   return badges;
 }
 
-propertiesRouter.get('/', async (_req, res) => {
+propertiesRouter.get('/', async (req, res) => {
   const properties = await prisma.property.findMany({
+    where: { householdId: req.householdId },
     include: {
       rooms: { include: { scores: true } },
       media: true,
-      neighborhoodScores: { include: { scorer: true } },
+      neighborhoodScores: true,
     },
     orderBy: { createdAt: 'asc' },
   });
 
   const summaries: PropertySummary[] = properties.map((p) => {
     const allScores = p.rooms.flatMap((r) => r.scores);
-    const neighborhood = p.neighborhoodScores.find((n) => n.scorer.role === 'SELF') ?? null;
+    const neighborhood = p.neighborhoodScores.find((n) => n.scorerId === req.scorerId) ?? null;
     const agg = aggregateSelfScores(allScores, neighborhood);
     return {
       id: p.id,
@@ -64,6 +65,7 @@ propertiesRouter.post('/', async (req, res) => {
 
   const property = await prisma.property.create({
     data: {
+      householdId: req.householdId!,
       address,
       city: city ?? '',
       state: state ?? '',
@@ -79,6 +81,12 @@ propertiesRouter.post('/', async (req, res) => {
 });
 
 propertiesRouter.put('/:id', async (req, res) => {
+  const owned = await prisma.property.findFirst({ where: { id: req.params.id, householdId: req.householdId } });
+  if (!owned) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
   const { address, city, state, listingPrice, sqft, beds, baths, yearBuilt } = req.body ?? {};
 
   const property = await prisma.property.update({
@@ -99,13 +107,18 @@ propertiesRouter.put('/:id', async (req, res) => {
 });
 
 propertiesRouter.delete('/:id', async (req, res) => {
+  const owned = await prisma.property.findFirst({ where: { id: req.params.id, householdId: req.householdId } });
+  if (!owned) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
   await prisma.property.delete({ where: { id: req.params.id } });
   res.status(204).end();
 });
 
 propertiesRouter.get('/:id', async (req, res) => {
-  const property = await prisma.property.findUnique({
-    where: { id: req.params.id },
+  const property = await prisma.property.findFirst({
+    where: { id: req.params.id, householdId: req.householdId },
     include: {
       rooms: { include: { scores: { include: { scorer: true } }, media: true } },
       media: true,
@@ -119,9 +132,9 @@ propertiesRouter.get('/:id', async (req, res) => {
     return;
   }
 
-  const selfNeighborhoodScore = property.neighborhoodScores.find((n) => n.scorer.role === 'SELF') ?? null;
+  const myNeighborhoodScore = property.neighborhoodScores.find((n) => n.scorerId === req.scorerId) ?? null;
   const allScores = property.rooms.flatMap((r) => r.scores);
-  const agg = aggregateSelfScores(allScores, selfNeighborhoodScore);
+  const agg = aggregateSelfScores(allScores, myNeighborhoodScore);
 
   const untaggedMedia = property.media.filter((m) => m.roomId === null);
   const mediaCount = property.media.length;
@@ -194,23 +207,23 @@ propertiesRouter.get('/:id', async (req, res) => {
     ],
     aiInsights: getPropertyOverviewInsights(property, agg),
     rooms,
-    neighborhoodScore: selfNeighborhoodScore
+    neighborhoodScore: myNeighborhoodScore
       ? {
-          id: selfNeighborhoodScore.id,
-          propertyId: selfNeighborhoodScore.propertyId,
+          id: myNeighborhoodScore.id,
+          propertyId: myNeighborhoodScore.propertyId,
           scorer: {
-            id: selfNeighborhoodScore.scorer.id,
-            name: selfNeighborhoodScore.scorer.name,
-            role: selfNeighborhoodScore.scorer.role,
-            initials: selfNeighborhoodScore.scorer.initials,
-            colorHex: selfNeighborhoodScore.scorer.colorHex,
-            contact: selfNeighborhoodScore.scorer.contact,
+            id: myNeighborhoodScore.scorer.id,
+            name: myNeighborhoodScore.scorer.name,
+            role: myNeighborhoodScore.scorer.role,
+            initials: myNeighborhoodScore.scorer.initials,
+            colorHex: myNeighborhoodScore.scorer.colorHex,
+            contact: myNeighborhoodScore.scorer.contact,
           },
-          curbAppeal: selfNeighborhoodScore.curbAppeal,
-          streetVibe: selfNeighborhoodScore.streetVibe,
-          feeling: selfNeighborhoodScore.feeling,
-          note: selfNeighborhoodScore.note,
-          createdAt: selfNeighborhoodScore.createdAt.toISOString(),
+          curbAppeal: myNeighborhoodScore.curbAppeal,
+          streetVibe: myNeighborhoodScore.streetVibe,
+          feeling: myNeighborhoodScore.feeling,
+          note: myNeighborhoodScore.note,
+          createdAt: myNeighborhoodScore.createdAt.toISOString(),
         }
       : null,
     untaggedMedia: untaggedMedia.map((m) => ({
@@ -242,14 +255,27 @@ propertiesRouter.get('/:id', async (req, res) => {
 });
 
 propertiesRouter.get('/:id/partner-comparison', async (req, res) => {
+  const owned = await prisma.property.findFirst({ where: { id: req.params.id, householdId: req.householdId } });
+  if (!owned) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
   const rooms = await prisma.room.findMany({
     where: { propertyId: req.params.id },
     include: { scores: { include: { scorer: true } } },
   });
 
+  // "Partner" here means "whoever else is in the household" from the current
+  // viewer's perspective — not the PARTNER role specifically, since either
+  // household member can log in and view this comparison from their own side.
+  const partnerJoined = await prisma.scorer.findFirst({
+    where: { householdId: req.householdId, id: { not: req.scorerId } },
+  });
+
   const roomNamesById = new Map(rooms.map((r) => [r.id, r.name]));
-  const selfScores = rooms.flatMap((r) => r.scores.filter((s) => s.scorer.role === 'SELF'));
-  const partnerScores = rooms.flatMap((r) => r.scores.filter((s) => s.scorer.role === 'PARTNER'));
+  const selfScores = rooms.flatMap((r) => r.scores.filter((s) => s.scorerId === req.scorerId));
+  const partnerScores = rooms.flatMap((r) => r.scores.filter((s) => s.scorerId !== req.scorerId));
 
   let partnerNote: string | null = null;
   if (partnerScores.length > 0) {
@@ -259,6 +285,6 @@ propertiesRouter.get('/:id/partner-comparison', async (req, res) => {
     partnerNote = note?.text ?? null;
   }
 
-  const comparison = buildPartnerComparison(selfScores, partnerScores, roomNamesById, partnerNote);
+  const comparison = buildPartnerComparison(selfScores, partnerScores, roomNamesById, partnerNote, !!partnerJoined);
   res.json(comparison);
 });

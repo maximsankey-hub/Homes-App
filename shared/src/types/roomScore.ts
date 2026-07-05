@@ -60,6 +60,22 @@ export interface PartnerComparisonRow {
 export interface PartnerComparison {
   self: { score: number; feelingLabel: string };
   partner: { score: number; feelingLabel: string; note: string | null } | null;
+  partnerJoined: boolean;
   factors: PartnerComparisonRow[];
   agreement: { label: string; agree: boolean; note: string }[];
+}
+
+export interface HouseholdMember {
+  id: string;
+  name: string;
+  role: ScorerRole;
+  initials: string;
+  colorHex: string;
+  isYou: boolean;
+}
+
+export interface Household {
+  id: string;
+  inviteCode: string;
+  members: HouseholdMember[];
 }

@@ -6,6 +6,7 @@ import { Icon } from '../../components/common/Icon';
 import { FEELING_ENUM, FEELING_LABEL, FEELING_OPTIONS } from '../visitMode/roomOptions';
 import { useUiStore } from '../../store/uiStore';
 import { useProperty } from '../homes/useProperties';
+import { useHousehold } from '../household/useHousehold';
 import { useUpdateNeighborhoodScore, useUpdateRoomScore } from './useRoomScore';
 
 interface ScoreDraft {
@@ -27,6 +28,7 @@ interface NeighborhoodDraft {
 export function VisitTab() {
   const { propertyId = '' } = useParams();
   const { data: property, isLoading } = useProperty(propertyId);
+  const { data: household } = useHousehold();
   const openModal = useUiStore((s) => s.openModal);
   const updateScore = useUpdateRoomScore(propertyId);
   const updateNeighborhood = useUpdateNeighborhoodScore(propertyId);
@@ -37,13 +39,14 @@ export function VisitTab() {
 
   if (isLoading || !property) return <div>Loading…</div>;
 
+  const myScorerId = household?.members.find((m) => m.isYou)?.id;
   const rooms = property.rooms.map((room) => ({
     ...room,
-    selfScore: room.scores.find((s) => s.scorer.role === 'SELF'),
+    myScore: room.scores.find((s) => s.scorer.id === myScorerId),
   }));
 
   const toggleRoom = (room: (typeof rooms)[number]) => {
-    if (!room.selfScore) return;
+    if (!room.myScore) return;
     if (expandedRoomId === room.id) {
       setExpandedRoomId(null);
       setDraft(null);
@@ -51,12 +54,12 @@ export function VisitTab() {
     }
     setExpandedRoomId(room.id);
     setDraft({
-      layout: room.selfScore.layout,
-      storage: room.selfScore.storage,
-      light: room.selfScore.light,
-      vibe: room.selfScore.vibe,
-      feeling: FEELING_LABEL[room.selfScore.feeling] ?? 'Calm',
-      note: room.selfScore.note ?? '',
+      layout: room.myScore.layout,
+      storage: room.myScore.storage,
+      light: room.myScore.light,
+      vibe: room.myScore.vibe,
+      feeling: FEELING_LABEL[room.myScore.feeling] ?? 'Calm',
+      note: room.myScore.note ?? '',
     });
   };
 
@@ -104,32 +107,32 @@ export function VisitTab() {
         ) : (
           rooms.map((room) => (
             <div key={room.id}>
-              <div className="rrow" style={{ cursor: room.selfScore ? 'pointer' : 'default' }} onClick={() => toggleRoom(room)}>
+              <div className="rrow" style={{ cursor: room.myScore ? 'pointer' : 'default' }} onClick={() => toggleRoom(room)}>
                 <div className="ri">
                   <Icon name={room.icon} size={17} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{room.name}</div>
-                  {room.selfScore && (
+                  {room.myScore && (
                     <span className="badge bb" style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
-                      {FEELING_LABEL[room.selfScore.feeling]}
+                      {FEELING_LABEL[room.myScore.feeling]}
                     </span>
                   )}
-                  {room.selfScore?.note && (
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{room.selfScore.note}</div>
+                  {room.myScore?.note && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{room.myScore.note}</div>
                   )}
                 </div>
-                {room.selfScore && (
+                {room.myScore && (
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div className="ms">
                       <span className="mn" style={{ color: '#1D9E75' }}>
-                        {room.selfScore.emotionalAvg.toFixed(1)}
+                        {room.myScore.emotionalAvg.toFixed(1)}
                       </span>
                       <span className="ml">Emo</span>
                     </div>
                     <div className="ms">
                       <span className="mn" style={{ color: 'var(--text-accent)' }}>
-                        {room.selfScore.functionalAvg.toFixed(1)}
+                        {room.myScore.functionalAvg.toFixed(1)}
                       </span>
                       <span className="ml">Func</span>
                     </div>

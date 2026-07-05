@@ -14,14 +14,14 @@ function buildBadges(status: string, score: number | null, roomCount: number, me
   return badges;
 }
 
-async function loadPropertyWithAggregate(id: string) {
-  const property = await prisma.property.findUnique({
-    where: { id },
-    include: { rooms: { include: { scores: true } }, media: true, neighborhoodScores: { include: { scorer: true } } },
+async function loadPropertyWithAggregate(id: string, householdId: string, scorerId: string) {
+  const property = await prisma.property.findFirst({
+    where: { id, householdId },
+    include: { rooms: { include: { scores: true } }, media: true, neighborhoodScores: true },
   });
   if (!property) return null;
   const allScores = property.rooms.flatMap((r) => r.scores);
-  const neighborhood = property.neighborhoodScores.find((n) => n.scorer.role === 'SELF') ?? null;
+  const neighborhood = property.neighborhoodScores.find((n) => n.scorerId === scorerId) ?? null;
   const agg = aggregateSelfScores(allScores, neighborhood);
   const summary: PropertySummary = {
     id: property.id,
@@ -48,7 +48,10 @@ compareRouter.get('/', async (req, res) => {
     return;
   }
 
-  const [propA, propB] = await Promise.all([loadPropertyWithAggregate(String(a)), loadPropertyWithAggregate(String(b))]);
+  const [propA, propB] = await Promise.all([
+    loadPropertyWithAggregate(String(a), req.householdId!, req.scorerId!),
+    loadPropertyWithAggregate(String(b), req.householdId!, req.scorerId!),
+  ]);
   if (!propA || !propB) {
     res.status(404).json({ error: 'One or both properties not found' });
     return;

@@ -1,16 +1,18 @@
 import { useState } from 'react';
+import { Icon } from '../../components/common/Icon';
+import { useHousehold } from '../household/useHousehold';
 import { useUiStore } from '../../store/uiStore';
-import { useInvitePartner } from './usePartnerComparison';
 
 export function InvitePartnerModal() {
   const closeModal = useUiStore((s) => s.closeModal);
-  const invitePartner = useInvitePartner();
-  const [name, setName] = useState('');
-  const [contact, setContact] = useState('');
+  const { data: household, isLoading } = useHousehold();
+  const [copied, setCopied] = useState(false);
 
-  const submit = () => {
-    if (!name.trim()) return;
-    invitePartner.mutate({ name: name.trim(), contact: contact.trim() || undefined }, { onSuccess: () => closeModal() });
+  const copy = () => {
+    if (!household) return;
+    navigator.clipboard.writeText(household.inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
@@ -18,23 +20,33 @@ export function InvitePartnerModal() {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>Invite a partner</h3>
         <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
-          They'll score homes independently. You'll see where you agree and disagree.
+          Share this code — they'll enter it when they create their account, and they'll see the same homes and score
+          rooms as themselves.
         </p>
-        <input type="text" placeholder="Partner's name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input type="text" placeholder="Email or phone (optional)" value={contact} onChange={(e) => setContact(e.target.value)} />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={closeModal}>
-            Cancel
-          </button>
-          <button
-            className="btn btnp"
-            style={{ flex: 1, justifyContent: 'center' }}
-            disabled={!name.trim() || invitePartner.isPending}
-            onClick={submit}
+        {isLoading || !household ? (
+          <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)' }}>Loading…</div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--surface-1)',
+              border: '0.5px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              padding: '10px 12px',
+              marginBottom: 12,
+            }}
           >
-            {invitePartner.isPending ? 'Sending…' : 'Send invite'}
-          </button>
-        </div>
+            <span style={{ fontSize: 18, fontWeight: 500, letterSpacing: 1 }}>{household.inviteCode}</span>
+            <button className="btn btns" onClick={copy}>
+              <Icon name={copied ? 'ti-check' : 'ti-tag'} size={13} /> {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        )}
+        <button className="btn btnp btnf" onClick={closeModal}>
+          Done
+        </button>
       </div>
     </div>
   );

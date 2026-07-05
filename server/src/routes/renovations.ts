@@ -5,6 +5,12 @@ import { estimateRenovationCost } from '../services/costEstimation.js';
 export const renovationsRouter = Router();
 
 renovationsRouter.get('/properties/:id/renovations', async (req, res) => {
+  const owned = await prisma.property.findFirst({ where: { id: req.params.id, householdId: req.householdId } });
+  if (!owned) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
   const renovations = await prisma.renovationIdea.findMany({
     where: { propertyId: req.params.id },
     include: { media: true },
@@ -13,6 +19,12 @@ renovationsRouter.get('/properties/:id/renovations', async (req, res) => {
 });
 
 renovationsRouter.post('/properties/:id/renovations', async (req, res) => {
+  const owned = await prisma.property.findFirst({ where: { id: req.params.id, householdId: req.householdId } });
+  if (!owned) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
   const { title, room, type, costLow, costHigh, feasibility, need, constraintNote } = req.body ?? {};
   if (!title) {
     res.status(400).json({ error: 'title is required' });
@@ -47,6 +59,14 @@ renovationsRouter.post('/renovations/estimate-cost', (req, res) => {
 });
 
 renovationsRouter.patch('/renovations/:id', async (req, res) => {
+  const owned = await prisma.renovationIdea.findFirst({
+    where: { id: req.params.id, property: { householdId: req.householdId } },
+  });
+  if (!owned) {
+    res.status(404).json({ error: 'Renovation idea not found' });
+    return;
+  }
+
   const { room } = req.body ?? {};
   const renovation = await prisma.renovationIdea.update({
     where: { id: req.params.id },
@@ -57,6 +77,13 @@ renovationsRouter.patch('/renovations/:id', async (req, res) => {
 });
 
 renovationsRouter.delete('/renovations/:id', async (req, res) => {
+  const owned = await prisma.renovationIdea.findFirst({
+    where: { id: req.params.id, property: { householdId: req.householdId } },
+  });
+  if (!owned) {
+    res.status(404).json({ error: 'Renovation idea not found' });
+    return;
+  }
   await prisma.renovationIdea.delete({ where: { id: req.params.id } });
   res.status(204).end();
 });

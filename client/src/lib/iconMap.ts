@@ -27,6 +27,7 @@ import {
   IconHomeSearch,
   IconInfoCircle,
   IconLayoutDashboard,
+  IconLogout,
   IconMapPin,
   IconMenu2,
   IconMessage,
@@ -117,6 +118,7 @@ export const ICONS: Record<string, TablerIcon> = {
   'ti-activity': IconActivity,
   'ti-paw': IconPaw,
   'ti-beer': IconBeer,
+  'ti-logout': IconLogout,
 };
 
 export function getIcon(key: string): TablerIcon {

@@ -3,14 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { PropertyDetail } from 'shared';
 import { Icon } from '../../components/common/Icon';
 import { useProperty } from '../homes/useProperties';
+import { useHousehold } from '../household/useHousehold';
 import { CaptureButtons } from './CaptureButtons';
 import { FEELING_ENUM, FEELING_LABEL, FEELING_OPTIONS, REFLECTION_PROMPTS, ROOM_OPTIONS } from './roomOptions';
 import { emotionalAvg, functionalAvg, useVisitFlow, type ExistingRoomScore, type FactorKey, type NeighborhoodDraft } from './useVisitFlow';
 import { useCreateRoom, useSaveNeighborhoodScore, useSaveRoomScore, useUploadMedia } from './useVisitMutations';
 
-function getExistingScoreForRoom(property: PropertyDetail | undefined, roomName: string): ExistingRoomScore | null {
+function getExistingScoreForRoom(property: PropertyDetail | undefined, roomName: string, myScorerId: string | undefined): ExistingRoomScore | null {
   const room = property?.rooms.find((r) => r.name === roomName);
-  const score = room?.scores.find((s) => s.scorer.role === 'SELF');
+  const score = room?.scores.find((s) => s.scorer.id === myScorerId);
   if (!score) return null;
   return {
     layout: score.layout,
@@ -37,6 +38,8 @@ export function VisitModeFlow() {
   const { propertyId = '' } = useParams();
   const navigate = useNavigate();
   const { data: property } = useProperty(propertyId);
+  const { data: household } = useHousehold();
+  const myScorerId = household?.members.find((m) => m.isYou)?.id;
   const { state, dispatch } = useVisitFlow();
   const [untaggedCount, setUntaggedCount] = useState(0);
 
@@ -46,15 +49,15 @@ export function VisitModeFlow() {
   const uploadMedia = useUploadMedia(propertyId);
 
   useEffect(() => {
-    // Prefill the default room and neighborhood score once property data first loads, so a revisit doesn't start blank.
-    if (!property) return;
-    const existing = getExistingScoreForRoom(property, state.roomName);
+    // Prefill the default room and neighborhood score once property and household data first load, so a revisit doesn't start blank.
+    if (!property || !myScorerId) return;
+    const existing = getExistingScoreForRoom(property, state.roomName, myScorerId);
     if (existing) dispatch({ type: 'SELECT_ROOM', name: state.roomName, icon: state.roomIcon, existingScore: existing });
     const existingNeighborhood = getExistingNeighborhoodScore(property);
     if (existingNeighborhood) dispatch({ type: 'PREFILL_NEIGHBORHOOD', data: existingNeighborhood });
-  }, [property]);
+  }, [property, myScorerId]);
 
-  const isRevisit = !!getExistingScoreForRoom(property, state.roomName);
+  const isRevisit = !!getExistingScoreForRoom(property, state.roomName, myScorerId);
   const eAvg = emotionalAvg(state);
   const fAvg = functionalAvg(state);
 
@@ -109,7 +112,7 @@ export function VisitModeFlow() {
                   key={room.name}
                   className={`rc${state.roomName === room.name ? ' sel' : ''}`}
                   onClick={() =>
-                    dispatch({ type: 'SELECT_ROOM', name: room.name, icon: room.icon, existingScore: getExistingScoreForRoom(property, room.name) })
+                    dispatch({ type: 'SELECT_ROOM', name: room.name, icon: room.icon, existingScore: getExistingScoreForRoom(property, room.name, myScorerId) })
                   }
                 >
                   <Icon name={room.icon} size={20} />
@@ -122,7 +125,7 @@ export function VisitModeFlow() {
               placeholder="Or type your own room name..."
               value={ROOM_OPTIONS.some((r) => r.name === state.roomName) ? '' : state.roomName}
               onChange={(e) =>
-                dispatch({ type: 'SELECT_ROOM', name: e.target.value, icon: 'ti-home', existingScore: getExistingScoreForRoom(property, e.target.value) })
+                dispatch({ type: 'SELECT_ROOM', name: e.target.value, icon: 'ti-home', existingScore: getExistingScoreForRoom(property, e.target.value, myScorerId) })
               }
               style={{ marginTop: 8 }}
             />
