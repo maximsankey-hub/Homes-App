@@ -4,7 +4,7 @@ A running backlog of features and fixes. Pick items off this list to build next;
 
 ## Your requested items
 
-- [ ] **Full-screen photo viewer** — clicking a media thumbnail (Visit tab, Overview) should open it in a large lightbox/overlay instead of the small grid tile. Also affects untagged media thumbnails.
+- [x] **Full-screen photo viewer** — clicking a media thumbnail (Visit tab, Overview) should open it in a large lightbox/overlay instead of the small grid tile. Also affects untagged media thumbnails.
 - [ ] **Editable score weighting during profile update** — the onboarding wizard ("Update profile" button) doesn't touch the weighting sliders at all right now; only the standalone Profile screen does. Fold weighting into the update flow.
 - [ ] **More onboarding questions** — expand beyond the current fixed 8 preference tags; add more depth to the "what matters most" and free-text steps.
 - [ ] **Room-specific aesthetic photos** — the onboarding swipe step only asks about kitchen style (4 emoji placeholders). Add swipe decks for bedrooms, bathrooms, backyards, etc., ideally with real photos instead of emoji.
@@ -14,9 +14,9 @@ A running backlog of features and fixes. Pick items off this list to build next;
 
 ## Bugs worth fixing
 
-- [ ] **"Update profile" doesn't load your current profile** — the onboarding wizard always starts from hardcoded defaults instead of pre-filling your actual saved tags/aesthetic style, so re-running it silently discards prior answers until you re-pick everything.
-- [ ] **No way to edit a property** — once added, a property's address/price/sqft/etc. can't be corrected, only re-entered from scratch.
-- [ ] **No way to delete anything** — properties, renovation ideas, improvement ideas, and media are all add-only. A typo or duplicate sticks around forever.
+- [x] **"Update profile" doesn't load your current profile** — the onboarding wizard always starts from hardcoded defaults instead of pre-filling your actual saved tags/aesthetic style, so re-running it silently discards prior answers until you re-pick everything.
+- [x] **No way to edit a property** — once added, a property's address/price/sqft/etc. can't be corrected, only re-entered from scratch.
+- [x] **No way to delete anything** — properties, renovation ideas, improvement ideas, and media are all add-only. A typo or duplicate sticks around forever.
 - [ ] **Reseeding wipes everything, not just demo data** — running the seed script deletes *all* properties/scores/media, including anything you've genuinely added, with no "reset demo only" option.
 - [ ] **"Invite a partner" doesn't let the partner actually do anything** — it creates a named scorer, but there's no way for that person to log in and submit their own room scores (ties directly into the Accounts & Auth item).
 
@@ -33,7 +33,7 @@ Real multi-user support touches a lot of the app:
 **Media & Visit mode**
 - Real camera/microphone capture (using the device's camera/mic directly) instead of only picking existing files
 - Compress/resize photos before upload (faster uploads, less Supabase Storage usage)
-- Reorder or delete individual photos within a room
+- Reorder photos within a room (delete is now supported, from the lightbox or the untagged-media tag prompt)
 
 **Data management**
 - Search/filter on the Homes list (matters once you're tracking more than a handful of properties)

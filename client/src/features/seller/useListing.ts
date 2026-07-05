@@ -34,3 +34,11 @@ export function useCreateImprovement() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['listing', 'improvements'] }),
   });
 }
+
+export function useDeleteImprovement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/listing/improvements/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['listing', 'improvements'] }),
+  });
+}

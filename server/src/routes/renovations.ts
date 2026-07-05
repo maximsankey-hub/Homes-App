@@ -31,3 +31,8 @@ renovationsRouter.post('/properties/:id/renovations', async (req, res) => {
 
   res.status(201).json(renovation);
 });
+
+renovationsRouter.delete('/renovations/:id', async (req, res) => {
+  await prisma.renovationIdea.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});

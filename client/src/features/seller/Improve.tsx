@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '../../components/common/Icon';
 import { useUiStore } from '../../store/uiStore';
-import { useListingImprovements } from './useListing';
+import { useDeleteImprovement, useListingImprovements } from './useListing';
 
 const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
   COSMETIC: { bg: '#EAF3DE', color: '#27500A' },
@@ -15,6 +15,7 @@ export function Improve() {
   const { data: plan, isLoading } = useListingImprovements();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const openModal = useUiStore((s) => s.openModal);
+  const deleteImprovement = useDeleteImprovement();
 
   if (isLoading || !plan) return <div className="pad">Loading…</div>;
 
@@ -95,9 +96,21 @@ export function Improve() {
                 </div>
               ))}
             </div>
-            <button className="btn btns" style={{ marginTop: 7 }} onClick={() => toggle(idea.id)}>
-              {isOpen ? 'Hide details' : 'View details'}
-            </button>
+            <div style={{ display: 'flex', gap: 6, marginTop: 7 }}>
+              <button className="btn btns" style={{ flex: 1 }} onClick={() => toggle(idea.id)}>
+                {isOpen ? 'Hide details' : 'View details'}
+              </button>
+              <button
+                className="btn btns"
+                style={{ color: 'var(--text-danger)' }}
+                onClick={() => {
+                  if (window.confirm(`Delete "${idea.title}"?`)) deleteImprovement.mutate(idea.id);
+                }}
+                aria-label="Delete improvement idea"
+              >
+                <Icon name="ti-trash" size={14} />
+              </button>
+            </div>
           </div>
         );
       })}

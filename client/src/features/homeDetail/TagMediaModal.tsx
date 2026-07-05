@@ -23,6 +23,14 @@ export function TagMediaModal() {
     },
   });
 
+  const deleteMedia = useMutation({
+    mutationFn: () => api.delete(`/media/${modalContext?.mediaId}`),
+    onSuccess: () => {
+      if (modalContext) queryClient.invalidateQueries({ queryKey: queryKeys.property(modalContext.propertyId) });
+      closeModal();
+    },
+  });
+
   if (!modalContext) return null;
 
   return (
@@ -39,6 +47,15 @@ export function TagMediaModal() {
         </div>
         <button className="btn btnf" onClick={closeModal}>
           Keep untagged for now
+        </button>
+        <button
+          className="btn btnf"
+          style={{ color: 'var(--text-danger)', marginTop: 6 }}
+          onClick={() => {
+            if (window.confirm('Delete this media?')) deleteMedia.mutate();
+          }}
+        >
+          Delete this media
         </button>
       </div>
     </div>

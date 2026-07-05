@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { useUiStore } from '../../store/uiStore';
-import { useRenovations } from './useRenovations';
+import { useDeleteRenovation, useRenovations } from './useRenovations';
 
 const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
   COSMETIC: { bg: '#EAF3DE', color: '#27500A' },
@@ -14,6 +14,7 @@ export function RenoTab() {
   const { data: ideas, isLoading } = useRenovations(propertyId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const openModal = useUiStore((s) => s.openModal);
+  const deleteRenovation = useDeleteRenovation(propertyId ?? '');
 
   if (isLoading || !ideas) return <div>Loading…</div>;
 
@@ -77,9 +78,21 @@ export function RenoTab() {
                 </div>
               )}
             </div>
-            <button className="btn btns" style={{ marginTop: 6 }} onClick={() => toggle(idea.id)}>
-              {isOpen ? 'Hide details' : 'View details'}
-            </button>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <button className="btn btns" style={{ flex: 1 }} onClick={() => toggle(idea.id)}>
+                {isOpen ? 'Hide details' : 'View details'}
+              </button>
+              <button
+                className="btn btns"
+                style={{ color: 'var(--text-danger)' }}
+                onClick={() => {
+                  if (window.confirm(`Delete "${idea.title}"?`)) deleteRenovation.mutate(idea.id);
+                }}
+                aria-label="Delete renovation idea"
+              >
+                <Icon name="ti-trash" size={14} />
+              </button>
+            </div>
           </div>
         );
       })}

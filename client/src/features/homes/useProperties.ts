@@ -38,3 +38,24 @@ export function useCreateProperty() {
     },
   });
 }
+
+export function useUpdateProperty(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreatePropertyInput) => api.put(`/properties/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties });
+      queryClient.invalidateQueries({ queryKey: queryKeys.property(id) });
+    },
+  });
+}
+
+export function useDeleteProperty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/properties/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties });
+    },
+  });
+}

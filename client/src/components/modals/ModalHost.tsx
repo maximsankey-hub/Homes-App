@@ -4,17 +4,21 @@ import { TagMediaModal } from '../../features/homeDetail/TagMediaModal';
 import { InvitePartnerModal } from '../../features/homeDetail/InvitePartnerModal';
 import { AddRenovationModal } from '../../features/homeDetail/AddRenovationModal';
 import { AddImprovementModal } from '../../features/seller/AddImprovementModal';
+import { MediaLightboxModal } from '../../features/homeDetail/MediaLightboxModal';
 
 export function ModalHost() {
   const activeModal = useUiStore((s) => s.activeModal);
 
   if (!activeModal) return null;
 
-  if (activeModal === 'addProperty') {
+  if (activeModal === 'addProperty' || activeModal === 'editProperty') {
     return <AddPropertyModal />;
   }
   if (activeModal === 'tagMedia') {
     return <TagMediaModal />;
+  }
+  if (activeModal === 'viewMedia') {
+    return <MediaLightboxModal />;
   }
   if (activeModal === 'invitePartner') {
     return <InvitePartnerModal />;

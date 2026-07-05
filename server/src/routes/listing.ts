@@ -225,3 +225,8 @@ listingRouter.post('/improvements', async (req, res) => {
 
   res.status(201).json(idea);
 });
+
+listingRouter.delete('/improvements/:id', async (req, res) => {
+  await prisma.improvementIdea.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});

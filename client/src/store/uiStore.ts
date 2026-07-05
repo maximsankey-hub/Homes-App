@@ -2,7 +2,15 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type Mode = 'buy' | 'sell';
-export type ModalId = 'addProperty' | 'invitePartner' | 'addRenovation' | 'addImprovement' | 'tagMedia' | null;
+export type ModalId =
+  | 'addProperty'
+  | 'editProperty'
+  | 'invitePartner'
+  | 'addRenovation'
+  | 'addImprovement'
+  | 'tagMedia'
+  | 'viewMedia'
+  | null;
 
 interface UiState {
   mode: Mode;

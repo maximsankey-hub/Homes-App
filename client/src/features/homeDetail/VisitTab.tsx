@@ -111,8 +111,12 @@ export function VisitTab() {
           <div key={room.id} style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 5 }}>{room.name}</div>
             <div className="mgrid">
-              {room.media.map((media) => (
-                <div className="mth" key={media.id}>
+              {room.media.map((media, i) => (
+                <div
+                  className="mth"
+                  key={media.id}
+                  onClick={() => openModal('viewMedia', { media: room.media, index: i })}
+                >
                   {media.type === 'PHOTO' ? (
                     <img src={media.filePath} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (

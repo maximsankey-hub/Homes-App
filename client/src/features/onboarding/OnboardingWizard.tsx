@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
-import { useAiMap, useUpdateProfile } from '../profile/useProfile';
+import { useAiMap, useProfile, useUpdateProfile } from '../profile/useProfile';
 import { PRESET_TAGS, SWIPE_STYLES } from './onboardingData';
 
 type Method = 'BOTH' | 'TAGS' | 'FREE_TEXT';
 
 export function OnboardingWizard() {
   const navigate = useNavigate();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const aiMap = useAiMap();
   const updateProfile = useUpdateProfile();
 
+  const [initialized, setInitialized] = useState(false);
   const [step, setStep] = useState(0);
   const [method, setMethod] = useState<Method>('BOTH');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(
@@ -22,6 +24,20 @@ export function OnboardingWizard() {
   const [describeMapped, setDescribeMapped] = useState<string[]>([]);
   const [swipeIndex, setSwipeIndex] = useState(0);
   const [likedStyle, setLikedStyle] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialized || !profile) return;
+    const hasSavedProfile = profile.tags.length > 0 || !!profile.freeText || !!profile.aestheticStyle;
+    if (hasSavedProfile) {
+      setMethod(profile.method);
+      setSelectedTags(new Set(profile.tags.map((t) => t.label)));
+      setDescribeText(profile.freeText ?? '');
+      setLikedStyle(profile.aestheticStyle ?? null);
+    }
+    setInitialized(true);
+  }, [profile, initialized]);
+
+  if (profileLoading || !initialized) return <div className="pad">Loading…</div>;
 
   const toggleTag = (label: string) => {
     setSelectedTags((prev) => {

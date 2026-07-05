@@ -76,6 +76,31 @@ propertiesRouter.post('/', async (req, res) => {
   res.status(201).json(property);
 });
 
+propertiesRouter.put('/:id', async (req, res) => {
+  const { address, city, state, listingPrice, sqft, beds, baths, yearBuilt } = req.body ?? {};
+
+  const property = await prisma.property.update({
+    where: { id: req.params.id },
+    data: {
+      ...(address !== undefined && { address }),
+      ...(city !== undefined && { city }),
+      ...(state !== undefined && { state }),
+      ...(listingPrice !== undefined && { listingPrice }),
+      ...(sqft !== undefined && { sqft }),
+      ...(beds !== undefined && { beds }),
+      ...(baths !== undefined && { baths }),
+      ...(yearBuilt !== undefined && { yearBuilt }),
+    },
+  });
+
+  res.json(property);
+});
+
+propertiesRouter.delete('/:id', async (req, res) => {
+  await prisma.property.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+
 propertiesRouter.get('/:id', async (req, res) => {
   const property = await prisma.property.findUnique({
     where: { id: req.params.id },

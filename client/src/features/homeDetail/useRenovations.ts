@@ -28,3 +28,13 @@ export function useCreateRenovation(propertyId: string) {
     },
   });
 }
+
+export function useDeleteRenovation(propertyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/renovations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties', propertyId, 'renovations'] });
+    },
+  });
+}

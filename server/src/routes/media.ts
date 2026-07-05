@@ -54,3 +54,8 @@ mediaRouter.patch('/media/:mediaId', async (req, res) => {
   });
   res.json(media);
 });
+
+mediaRouter.delete('/media/:mediaId', async (req, res) => {
+  await prisma.media.delete({ where: { id: req.params.mediaId } });
+  res.status(204).end();
+});

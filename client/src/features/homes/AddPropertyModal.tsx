@@ -1,24 +1,32 @@
 import { useState } from 'react';
+import type { PropertyDetail } from 'shared';
 import { useUiStore } from '../../store/uiStore';
-import { useCreateProperty } from './useProperties';
+import { useCreateProperty, useUpdateProperty } from './useProperties';
 
 export function AddPropertyModal() {
   const closeModal = useUiStore((s) => s.closeModal);
-  const createProperty = useCreateProperty();
+  const activeModal = useUiStore((s) => s.activeModal);
+  const modalContext = useUiStore((s) => s.modalContext) as { property: PropertyDetail } | null;
+  const isEdit = activeModal === 'editProperty';
+  const existing = isEdit ? modalContext?.property : undefined;
 
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [listingPrice, setListingPrice] = useState('');
-  const [sqft, setSqft] = useState('');
-  const [beds, setBeds] = useState('');
-  const [baths, setBaths] = useState('');
+  const createProperty = useCreateProperty();
+  const updateProperty = useUpdateProperty(existing?.id ?? '');
+  const saveProperty = isEdit ? updateProperty : createProperty;
+
+  const [address, setAddress] = useState(existing?.address ?? '');
+  const [city, setCity] = useState(existing?.city ?? '');
+  const [state, setState] = useState(existing?.state ?? '');
+  const [listingPrice, setListingPrice] = useState(existing ? String(existing.listingPrice) : '');
+  const [sqft, setSqft] = useState(existing ? String(existing.sqft) : '');
+  const [beds, setBeds] = useState(existing ? String(existing.beds) : '');
+  const [baths, setBaths] = useState(existing ? String(existing.baths) : '');
 
   const canSubmit = address.trim().length > 0 && Number(listingPrice) > 0;
 
   const submit = () => {
     if (!canSubmit) return;
-    createProperty.mutate(
+    saveProperty.mutate(
       {
         address: address.trim(),
         city: city.trim(),
@@ -35,7 +43,7 @@ export function AddPropertyModal() {
   return (
     <div className="mover open" onClick={closeModal}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Add a property</h3>
+        <h3>{isEdit ? 'Edit property' : 'Add a property'}</h3>
         <input
           type="text"
           placeholder="Address, e.g. 123 Main Street"
@@ -57,8 +65,10 @@ export function AddPropertyModal() {
           <input type="text" placeholder="Beds" value={beds} onChange={(e) => setBeds(e.target.value.replace(/[^0-9]/g, ''))} />
           <input type="text" placeholder="Baths" value={baths} onChange={(e) => setBaths(e.target.value.replace(/[^0-9]/g, ''))} />
         </div>
-        {createProperty.isError && (
-          <p style={{ fontSize: 12, color: 'var(--text-danger)', marginBottom: 8 }}>Couldn't add property. Try again.</p>
+        {saveProperty.isError && (
+          <p style={{ fontSize: 12, color: 'var(--text-danger)', marginBottom: 8 }}>
+            Couldn't {isEdit ? 'save' : 'add'} property. Try again.
+          </p>
         )}
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={closeModal}>
@@ -67,10 +77,10 @@ export function AddPropertyModal() {
           <button
             className="btn btnp"
             style={{ flex: 1, justifyContent: 'center' }}
-            disabled={!canSubmit || createProperty.isPending}
+            disabled={!canSubmit || saveProperty.isPending}
             onClick={submit}
           >
-            {createProperty.isPending ? 'Adding…' : 'Add home'}
+            {isEdit ? (saveProperty.isPending ? 'Saving…' : 'Save changes') : saveProperty.isPending ? 'Adding…' : 'Add home'}
           </button>
         </div>
       </div>
