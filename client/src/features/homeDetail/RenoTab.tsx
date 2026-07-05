@@ -124,7 +124,7 @@ export function RenoTab() {
               )}
               <p style={{ fontSize: 11, fontWeight: 500, margin: '8px 0 6px' }}>Attach photos</p>
               <CaptureButtons
-                onCapture={(file, kind) => uploadMedia.mutate({ renovationIdeaId: idea.id, file, kind })}
+                onCapture={(file, kind) => uploadMedia.mutate({ renovationIdeaId: idea.id, file, type: kind })}
               />
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
