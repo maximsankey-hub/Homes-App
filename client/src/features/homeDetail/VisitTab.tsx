@@ -3,18 +3,10 @@ import { useParams } from 'react-router-dom';
 import { Badge } from '../../components/common/Badge';
 import { FactorBar } from '../../components/common/FactorBar';
 import { Icon } from '../../components/common/Icon';
-import { FEELING_ENUM, FEELING_OPTIONS } from '../visitMode/roomOptions';
+import { FEELING_ENUM, FEELING_LABEL, FEELING_OPTIONS } from '../visitMode/roomOptions';
 import { useUiStore } from '../../store/uiStore';
 import { useProperty } from '../homes/useProperties';
-import { useUpdateRoomScore } from './useRoomScore';
-
-const FEELING_LABEL: Record<string, string> = {
-  EXCITED: 'Excited',
-  CALM: 'Calm',
-  UNCERTAIN: 'Uncertain',
-  OVERWHELMED: 'Overwhelmed',
-  INSPIRED: 'Inspired',
-};
+import { useUpdateNeighborhoodScore, useUpdateRoomScore } from './useRoomScore';
 
 interface ScoreDraft {
   layout: number;
@@ -25,13 +17,23 @@ interface ScoreDraft {
   note: string;
 }
 
+interface NeighborhoodDraft {
+  curbAppeal: number;
+  streetVibe: number;
+  feeling: string;
+  note: string;
+}
+
 export function VisitTab() {
   const { propertyId = '' } = useParams();
   const { data: property, isLoading } = useProperty(propertyId);
   const openModal = useUiStore((s) => s.openModal);
   const updateScore = useUpdateRoomScore(propertyId);
+  const updateNeighborhood = useUpdateNeighborhoodScore(propertyId);
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ScoreDraft | null>(null);
+  const [neighborhoodExpanded, setNeighborhoodExpanded] = useState(false);
+  const [neighborhoodDraft, setNeighborhoodDraft] = useState<NeighborhoodDraft | null>(null);
 
   if (isLoading || !property) return <div>Loading…</div>;
 
@@ -63,6 +65,30 @@ export function VisitTab() {
     updateScore.mutate(
       { roomId, ...draft, feeling: FEELING_ENUM[draft.feeling] ?? 'CALM' },
       { onSuccess: () => setExpandedRoomId(null) },
+    );
+  };
+
+  const toggleNeighborhood = () => {
+    if (!property.neighborhoodScore) return;
+    if (neighborhoodExpanded) {
+      setNeighborhoodExpanded(false);
+      setNeighborhoodDraft(null);
+      return;
+    }
+    setNeighborhoodExpanded(true);
+    setNeighborhoodDraft({
+      curbAppeal: property.neighborhoodScore.curbAppeal,
+      streetVibe: property.neighborhoodScore.streetVibe,
+      feeling: FEELING_LABEL[property.neighborhoodScore.feeling] ?? 'Calm',
+      note: property.neighborhoodScore.note ?? '',
+    });
+  };
+
+  const saveNeighborhoodDraft = () => {
+    if (!neighborhoodDraft) return;
+    updateNeighborhood.mutate(
+      { ...neighborhoodDraft, feeling: FEELING_ENUM[neighborhoodDraft.feeling] ?? 'CALM' },
+      { onSuccess: () => setNeighborhoodExpanded(false) },
     );
   };
 
@@ -168,6 +194,92 @@ export function VisitTab() {
               )}
             </div>
           ))
+        )}
+      </div>
+
+      <div className="div" />
+
+      <div className="slbl">Neighborhood</div>
+      <div className="card" style={{ padding: '10px 12px' }}>
+        {!property.neighborhoodScore ? (
+          <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>
+            <Icon name="ti-map-pin" size={26} />
+            <div style={{ marginTop: 6 }}>Not scored yet — score it from Visit mode.</div>
+          </div>
+        ) : (
+          <>
+            <div className="rrow" style={{ cursor: 'pointer' }} onClick={toggleNeighborhood}>
+              <div className="ri">
+                <Icon name="ti-map-pin" size={17} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>Neighborhood feel</div>
+                <span className="badge bb" style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
+                  {FEELING_LABEL[property.neighborhoodScore.feeling]}
+                </span>
+                {property.neighborhoodScore.note && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{property.neighborhoodScore.note}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div className="ms">
+                  <span className="mn" style={{ color: 'var(--text-accent)' }}>
+                    {property.neighborhoodScore.curbAppeal}
+                  </span>
+                  <span className="ml">Curb</span>
+                </div>
+                <div className="ms">
+                  <span className="mn" style={{ color: '#1D9E75' }}>
+                    {property.neighborhoodScore.streetVibe}
+                  </span>
+                  <span className="ml">Vibe</span>
+                </div>
+              </div>
+            </div>
+
+            {neighborhoodExpanded && neighborhoodDraft && (
+              <div style={{ padding: '4px 8px 10px 40px' }} onClick={(e) => e.stopPropagation()}>
+                {(['curbAppeal', 'streetVibe'] as const).map((key) => (
+                  <div className="fr" key={key}>
+                    <span className="frl">{key === 'curbAppeal' ? 'Curb appeal' : 'Street / block vibe'}</span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={neighborhoodDraft[key]}
+                      style={{ flex: 1 }}
+                      onChange={(e) => setNeighborhoodDraft({ ...neighborhoodDraft, [key]: Number(e.target.value) })}
+                    />
+                    <span className="frv">{neighborhoodDraft[key]}</span>
+                  </div>
+                ))}
+                <div style={{ margin: '8px 0' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {FEELING_OPTIONS.map((feeling) => (
+                      <button
+                        key={feeling}
+                        className={`tag${neighborhoodDraft.feeling === feeling ? ' sb' : ''}`}
+                        onClick={() => setNeighborhoodDraft({ ...neighborhoodDraft, feeling })}
+                      >
+                        {feeling}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  className="na"
+                  placeholder="Quick thought about the block, street noise, neighbors..."
+                  style={{ marginBottom: 8 }}
+                  value={neighborhoodDraft.note}
+                  onChange={(e) => setNeighborhoodDraft({ ...neighborhoodDraft, note: e.target.value })}
+                />
+                <button className="btn btnp btnf" disabled={updateNeighborhood.isPending} onClick={saveNeighborhoodDraft}>
+                  {updateNeighborhood.isPending ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

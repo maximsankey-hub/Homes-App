@@ -36,3 +36,11 @@ export const FEELING_ENUM: Record<string, string> = {
   Overwhelmed: 'OVERWHELMED',
   Inspired: 'INSPIRED',
 };
+
+export const FEELING_LABEL: Record<string, string> = {
+  EXCITED: 'Excited',
+  CALM: 'Calm',
+  UNCERTAIN: 'Uncertain',
+  OVERWHELMED: 'Overwhelmed',
+  INSPIRED: 'Inspired',
+};

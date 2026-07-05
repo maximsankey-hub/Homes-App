@@ -17,11 +17,12 @@ function buildBadges(status: string, score: number | null, roomCount: number, me
 async function loadPropertyWithAggregate(id: string) {
   const property = await prisma.property.findUnique({
     where: { id },
-    include: { rooms: { include: { scores: true } }, media: true },
+    include: { rooms: { include: { scores: true } }, media: true, neighborhoodScores: { include: { scorer: true } } },
   });
   if (!property) return null;
   const allScores = property.rooms.flatMap((r) => r.scores);
-  const agg = aggregateSelfScores(allScores);
+  const neighborhood = property.neighborhoodScores.find((n) => n.scorer.role === 'SELF') ?? null;
+  const agg = aggregateSelfScores(allScores, neighborhood);
   const summary: PropertySummary = {
     id: property.id,
     address: property.address,

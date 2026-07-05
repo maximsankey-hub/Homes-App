@@ -1,6 +1,6 @@
 import type { PropertyStatus, IdeaType, PlaceCategory } from '../enums.js';
 import type { AIInsight, Badge } from './common.js';
-import type { Room, FactorBreakdown } from './roomScore.js';
+import type { Room, FactorBreakdown, NeighborhoodScore } from './roomScore.js';
 import type { Media } from './media.js';
 
 export interface PropertySummary {
@@ -31,6 +31,7 @@ export interface PropertyDetail extends PropertySummary {
   metrics: PropertyMetric[];
   aiInsights: AIInsight[];
   rooms: Room[];
+  neighborhoodScore: NeighborhoodScore | null;
   untaggedMedia: Media[];
   factorBreakdown: FactorBreakdown[];
   emotionalAvg: number | null;

@@ -34,6 +34,17 @@ export interface Room {
   media: Media[];
 }
 
+export interface NeighborhoodScore {
+  id: string;
+  propertyId: string;
+  scorer: Scorer;
+  curbAppeal: number;
+  streetVibe: number;
+  feeling: RoomFeeling;
+  note: string | null;
+  createdAt: string;
+}
+
 export interface FactorBreakdown {
   label: string;
   value: number;

@@ -26,13 +26,15 @@ propertiesRouter.get('/', async (_req, res) => {
     include: {
       rooms: { include: { scores: true } },
       media: true,
+      neighborhoodScores: { include: { scorer: true } },
     },
     orderBy: { createdAt: 'asc' },
   });
 
   const summaries: PropertySummary[] = properties.map((p) => {
     const allScores = p.rooms.flatMap((r) => r.scores);
-    const agg = aggregateSelfScores(allScores);
+    const neighborhood = p.neighborhoodScores.find((n) => n.scorer.role === 'SELF') ?? null;
+    const agg = aggregateSelfScores(allScores, neighborhood);
     return {
       id: p.id,
       address: p.address,
@@ -108,6 +110,7 @@ propertiesRouter.get('/:id', async (req, res) => {
       rooms: { include: { scores: { include: { scorer: true } }, media: true } },
       media: true,
       nearbyPlaces: true,
+      neighborhoodScores: { include: { scorer: true } },
     },
   });
 
@@ -116,8 +119,9 @@ propertiesRouter.get('/:id', async (req, res) => {
     return;
   }
 
+  const selfNeighborhoodScore = property.neighborhoodScores.find((n) => n.scorer.role === 'SELF') ?? null;
   const allScores = property.rooms.flatMap((r) => r.scores);
-  const agg = aggregateSelfScores(allScores);
+  const agg = aggregateSelfScores(allScores, selfNeighborhoodScore);
 
   const untaggedMedia = property.media.filter((m) => m.roomId === null);
   const mediaCount = property.media.length;
@@ -190,6 +194,25 @@ propertiesRouter.get('/:id', async (req, res) => {
     ],
     aiInsights: getPropertyOverviewInsights(property, agg),
     rooms,
+    neighborhoodScore: selfNeighborhoodScore
+      ? {
+          id: selfNeighborhoodScore.id,
+          propertyId: selfNeighborhoodScore.propertyId,
+          scorer: {
+            id: selfNeighborhoodScore.scorer.id,
+            name: selfNeighborhoodScore.scorer.name,
+            role: selfNeighborhoodScore.scorer.role,
+            initials: selfNeighborhoodScore.scorer.initials,
+            colorHex: selfNeighborhoodScore.scorer.colorHex,
+            contact: selfNeighborhoodScore.scorer.contact,
+          },
+          curbAppeal: selfNeighborhoodScore.curbAppeal,
+          streetVibe: selfNeighborhoodScore.streetVibe,
+          feeling: selfNeighborhoodScore.feeling,
+          note: selfNeighborhoodScore.note,
+          createdAt: selfNeighborhoodScore.createdAt.toISOString(),
+        }
+      : null,
     untaggedMedia: untaggedMedia.map((m) => ({
       id: m.id,
       propertyId: m.propertyId,

@@ -18,33 +18,44 @@ async function uploadPlaceholderMedia(): Promise<{ filePath: string; sizeBytes: 
   return { filePath: data.publicUrl, sizeBytes: PLACEHOLDER_PNG.length };
 }
 
-async function main() {
-  // Clear existing data (idempotent re-seed)
-  await prisma.media.deleteMany();
-  await prisma.roomScore.deleteMany();
-  await prisma.room.deleteMany();
-  await prisma.renovationIdea.deleteMany();
-  await prisma.nearbyPlace.deleteMany();
-  await prisma.property.deleteMany();
-  await prisma.scorer.deleteMany();
-  await prisma.preferenceTag.deleteMany();
-  await prisma.preferenceProfile.deleteMany();
-  await prisma.marketComp.deleteMany();
-  await prisma.listingRoomScore.deleteMany();
-  await prisma.improvementIdea.deleteMany();
-  await prisma.listing.deleteMany();
-  await prisma.scorerNote.deleteMany();
+const DEMO_ONLY = process.argv.includes('--demo-only');
 
-  const jordan = await prisma.scorer.create({
-    data: { name: 'Jordan', role: 'SELF', initials: 'JL', colorHex: '#1D9E75' },
-  });
-  const morgan = await prisma.scorer.create({
-    data: { name: 'Morgan', role: 'PARTNER', initials: 'MK', colorHex: '#3C3489' },
-  });
+async function upsertScorer(name: string, role: 'SELF' | 'PARTNER', initials: string, colorHex: string) {
+  const existing = await prisma.scorer.findFirst({ where: { name, role } });
+  if (existing) return existing;
+  return prisma.scorer.create({ data: { name, role, initials, colorHex } });
+}
+
+async function main() {
+  if (DEMO_ONLY) {
+    // Only remove the seeded demo properties (rooms/scores/media/renovations cascade with them) —
+    // leaves any properties, scorers, or profile/listing customization added since.
+    await prisma.property.deleteMany({ where: { isDemo: true } });
+  } else {
+    // Clear existing data (idempotent full re-seed)
+    await prisma.media.deleteMany();
+    await prisma.roomScore.deleteMany();
+    await prisma.room.deleteMany();
+    await prisma.renovationIdea.deleteMany();
+    await prisma.nearbyPlace.deleteMany();
+    await prisma.property.deleteMany();
+    await prisma.scorer.deleteMany();
+    await prisma.preferenceTag.deleteMany();
+    await prisma.preferenceProfile.deleteMany();
+    await prisma.marketComp.deleteMany();
+    await prisma.listingRoomScore.deleteMany();
+    await prisma.improvementIdea.deleteMany();
+    await prisma.listing.deleteMany();
+    await prisma.scorerNote.deleteMany();
+  }
+
+  const jordan = await upsertScorer('Jordan', 'SELF', 'JL', '#1D9E75');
+  const morgan = await upsertScorer('Morgan', 'PARTNER', 'MK', '#3C3489');
 
   // ── 2847 Elm Street ──
   const elm = await prisma.property.create({
     data: {
+      isDemo: true,
       address: '2847 Elm Street',
       city: 'Denver',
       state: 'CO',
@@ -170,6 +181,7 @@ async function main() {
   // ── 512 Maple Avenue ──
   await prisma.property.create({
     data: {
+      isDemo: true,
       address: '512 Maple Avenue',
       city: 'Denver',
       state: 'CO',
@@ -213,6 +225,7 @@ async function main() {
   // ── 1190 Oak Lane ──
   const oak = await prisma.property.create({
     data: {
+      isDemo: true,
       address: '1190 Oak Lane',
       city: 'Lakewood',
       state: 'CO',
@@ -285,113 +298,117 @@ async function main() {
     ],
   });
 
-  // ── Preference profile ──
-  await prisma.preferenceProfile.create({
-    data: {
-      method: 'BOTH',
-      weightEmotional: 8,
-      weightStorage: 9,
-      weightLight: 9,
-      aestheticStyle: 'Warm, cozy, traditional',
-      tags: {
-        create: [
-          { label: 'Natural light', source: 'MANUAL' },
-          { label: 'Hosting friends', source: 'MANUAL' },
-          { label: 'Work from home', source: 'MANUAL' },
-          { label: 'Organization', source: 'MANUAL' },
-          { label: 'Visible storage', source: 'AI_MAPPED' },
-          { label: 'Open layouts', source: 'MANUAL' },
-        ],
+  // ── Preference profile ── only seed if none exists yet, so a demo-only reset never overwrites real answers.
+  if (!(await prisma.preferenceProfile.findFirst())) {
+    await prisma.preferenceProfile.create({
+      data: {
+        method: 'BOTH',
+        weightEmotional: 8,
+        weightStorage: 9,
+        weightLight: 9,
+        aestheticStyle: 'Warm, cozy, traditional',
+        tags: {
+          create: [
+            { label: 'Natural light', source: 'MANUAL' },
+            { label: 'Hosting friends', source: 'MANUAL' },
+            { label: 'Work from home', source: 'MANUAL' },
+            { label: 'Organization', source: 'MANUAL' },
+            { label: 'Visible storage', source: 'AI_MAPPED' },
+            { label: 'Open layouts', source: 'MANUAL' },
+          ],
+        },
       },
-    },
-  });
+    });
+  }
 
-  // ── Seller listing (the household's own home) ──
-  await prisma.listing.create({
-    data: {
-      address: '2847 Elm Street',
-      city: 'Denver',
-      state: 'CO',
-      listPrice: 685000,
-      sqft: 2100,
-      beds: 3,
-      baths: 2,
-      estValueLow: 672000,
-      estValueHigh: 701000,
-      confidenceScore: 7.6,
-      avgDaysOnMarket: 18,
-      pricePerSqft: 326,
-      buyerEmotionalAvg: 8.1,
-      buyerFunctionalAvg: 5.9,
-      marketStatus: 'Strong',
-      buyerViewsCount: 12,
-      walkabilityScore: 7.8,
-      parkAccessScore: 9.0,
-      privacyScore: 5.5,
-      schoolQualityScore: 8.2,
-      noiseLevelScore: 3.8,
-      buyerPriorityLight: 9.1,
-      buyerPriorityKitchen: 8.8,
-      buyerPriorityStorage: 8.5,
-      buyerPriorityLayout: 8.0,
-      fitHosting: 8.2,
-      fitWFH: 7.4,
-      fitOrganization: 4.2,
-      fitFamily: 7.8,
-      comps: {
-        create: [
-          { address: '1842 Maple Drive', sqft: 1980, saleDate: new Date('2026-04-15'), price: 658000, diffType: 'ABOVE', diffAmount: 27000, note: 'Smaller sq ft, no basement. Sold in 14 days.' },
-          { address: '3310 Oak Avenue', sqft: 2240, saleDate: new Date('2026-05-10'), price: 712000, diffType: 'BELOW', diffAmount: 27000, note: 'Larger sq ft, updated kitchen. Sold in 9 days with multiple offers.' },
-          { address: '776 Cedar Street', sqft: 2120, saleDate: new Date('2026-06-05'), price: 698000, diffType: 'WITHIN', diffAmount: 13000, note: 'Extra bedroom. Sold in 11 days with multiple offers.' },
-        ],
+  // ── Seller listing (the household's own home) ── only seed if none exists yet, for the same reason as the profile above.
+  if (!(await prisma.listing.findFirst())) {
+    await prisma.listing.create({
+      data: {
+        address: '2847 Elm Street',
+        city: 'Denver',
+        state: 'CO',
+        listPrice: 685000,
+        sqft: 2100,
+        beds: 3,
+        baths: 2,
+        estValueLow: 672000,
+        estValueHigh: 701000,
+        confidenceScore: 7.6,
+        avgDaysOnMarket: 18,
+        pricePerSqft: 326,
+        buyerEmotionalAvg: 8.1,
+        buyerFunctionalAvg: 5.9,
+        marketStatus: 'Strong',
+        buyerViewsCount: 12,
+        walkabilityScore: 7.8,
+        parkAccessScore: 9.0,
+        privacyScore: 5.5,
+        schoolQualityScore: 8.2,
+        noiseLevelScore: 3.8,
+        buyerPriorityLight: 9.1,
+        buyerPriorityKitchen: 8.8,
+        buyerPriorityStorage: 8.5,
+        buyerPriorityLayout: 8.0,
+        fitHosting: 8.2,
+        fitWFH: 7.4,
+        fitOrganization: 4.2,
+        fitFamily: 7.8,
+        comps: {
+          create: [
+            { address: '1842 Maple Drive', sqft: 1980, saleDate: new Date('2026-04-15'), price: 658000, diffType: 'ABOVE', diffAmount: 27000, note: 'Smaller sq ft, no basement. Sold in 14 days.' },
+            { address: '3310 Oak Avenue', sqft: 2240, saleDate: new Date('2026-05-10'), price: 712000, diffType: 'BELOW', diffAmount: 27000, note: 'Larger sq ft, updated kitchen. Sold in 9 days with multiple offers.' },
+            { address: '776 Cedar Street', sqft: 2120, saleDate: new Date('2026-06-05'), price: 698000, diffType: 'WITHIN', diffAmount: 13000, note: 'Extra bedroom. Sold in 11 days with multiple offers.' },
+          ],
+        },
+        roomScores: {
+          create: [
+            { roomName: 'Kitchen', score: 8.8 },
+            { roomName: 'Living room', score: 8.2 },
+            { roomName: 'Primary bedroom', score: 6.4 },
+            { roomName: 'Overall', score: 7.6 },
+          ],
+        },
+        improvements: {
+          create: [
+            {
+              title: 'Built-in storage and shelving',
+              demandLevel: 'HIGH',
+              type: 'COSMETIC',
+              valueLift: 20000,
+              costLow: 8000,
+              costHigh: 12000,
+              feasibility: 92,
+              supportingNote1: 'Mentioned by 71% of buyers in similar homes. Storage score is 4.2 vs 7.5 local average.',
+              supportingNote2: 'Standard finish carpentry — no structural work. Can be done in 1–2 weeks.',
+            },
+            {
+              title: 'Primary closet expansion',
+              demandLevel: 'MODERATE',
+              type: 'STRUCTURAL',
+              valueLift: 25000,
+              costLow: 12000,
+              costHigh: 22000,
+              feasibility: 65,
+              supportingNote1: 'Flagged in 6 of 12 buyer visits. Below average for 3bd homes in this zip code.',
+              supportingNote2: 'Denver R-1 zone allows interior structural modifications with standard permit.',
+            },
+            {
+              title: 'Backyard privacy fence',
+              demandLevel: 'MODERATE',
+              type: 'COSMETIC',
+              valueLift: 12000,
+              costLow: 3000,
+              costHigh: 8000,
+              feasibility: 75,
+              supportingNote1: '44% of buyers flagged backyard privacy. Score is 5.5 vs 7.1 neighborhood average.',
+              supportingNote2: 'Denver zoning permits 6ft fences on side and rear lines without a variance.',
+            },
+          ],
+        },
       },
-      roomScores: {
-        create: [
-          { roomName: 'Kitchen', score: 8.8 },
-          { roomName: 'Living room', score: 8.2 },
-          { roomName: 'Primary bedroom', score: 6.4 },
-          { roomName: 'Overall', score: 7.6 },
-        ],
-      },
-      improvements: {
-        create: [
-          {
-            title: 'Built-in storage and shelving',
-            demandLevel: 'HIGH',
-            type: 'COSMETIC',
-            valueLift: 20000,
-            costLow: 8000,
-            costHigh: 12000,
-            feasibility: 92,
-            supportingNote1: 'Mentioned by 71% of buyers in similar homes. Storage score is 4.2 vs 7.5 local average.',
-            supportingNote2: 'Standard finish carpentry — no structural work. Can be done in 1–2 weeks.',
-          },
-          {
-            title: 'Primary closet expansion',
-            demandLevel: 'MODERATE',
-            type: 'STRUCTURAL',
-            valueLift: 25000,
-            costLow: 12000,
-            costHigh: 22000,
-            feasibility: 65,
-            supportingNote1: 'Flagged in 6 of 12 buyer visits. Below average for 3bd homes in this zip code.',
-            supportingNote2: 'Denver R-1 zone allows interior structural modifications with standard permit.',
-          },
-          {
-            title: 'Backyard privacy fence',
-            demandLevel: 'MODERATE',
-            type: 'COSMETIC',
-            valueLift: 12000,
-            costLow: 3000,
-            costHigh: 8000,
-            feasibility: 75,
-            supportingNote1: '44% of buyers flagged backyard privacy. Score is 5.5 vs 7.1 neighborhood average.',
-            supportingNote2: 'Denver zoning permits 6ft fences on side and rear lines without a variance.',
-          },
-        ],
-      },
-    },
-  });
+    });
+  }
 
   console.log('Seed complete.');
 }

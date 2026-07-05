@@ -10,6 +10,7 @@ import { renovationsRouter } from './routes/renovations.js';
 import { nearbyRouter } from './routes/nearby.js';
 import { compareRouter } from './routes/compare.js';
 import { listingRouter } from './routes/listing.js';
+import { neighborhoodScoreRouter } from './routes/neighborhoodScore.js';
 import { clientDistDir } from './lib/paths.js';
 
 export const app = express();
@@ -30,6 +31,7 @@ app.use('/api', nearbyRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/scorers', scorersRouter);
 app.use('/api', renovationsRouter);
+app.use('/api', neighborhoodScoreRouter);
 app.use('/api/listing', listingRouter);
 
 // Local-only convenience: `npm run build && npm start` previews the production

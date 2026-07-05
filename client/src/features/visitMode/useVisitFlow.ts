@@ -2,8 +2,15 @@ import { useReducer } from 'react';
 
 export type FactorKey = 'layout' | 'storage' | 'light' | 'vibe';
 
+export interface NeighborhoodDraft {
+  curbAppeal: number;
+  streetVibe: number;
+  feeling: string;
+  note: string;
+}
+
 interface VisitFlowState {
-  step: 0 | 1 | 2 | 3;
+  step: 0 | 1 | 2 | 3 | 4;
   roomName: string;
   roomIcon: string;
   layout: number;
@@ -14,36 +21,49 @@ interface VisitFlowState {
   note: string;
   pendingRoomFiles: { file: File; kind: 'PHOTO' | 'VIDEO' | 'VOICE' }[];
   lastSaved: { roomName: string; emotionalAvg: number; functionalAvg: number; feeling: string } | null;
+  neighborhood: NeighborhoodDraft;
 }
 
+export interface ExistingRoomScore {
+  layout: number;
+  storage: number;
+  light: number;
+  vibe: number;
+  feeling: string;
+  note: string;
+}
+
+const NEUTRAL_SCORE: ExistingRoomScore = { layout: 5, storage: 5, light: 5, vibe: 5, feeling: 'Calm', note: '' };
+const NEUTRAL_NEIGHBORHOOD: NeighborhoodDraft = { curbAppeal: 5, streetVibe: 5, feeling: 'Calm', note: '' };
+
 type Action =
-  | { type: 'SELECT_ROOM'; name: string; icon: string }
-  | { type: 'GOTO_STEP'; step: 0 | 1 | 2 | 3 }
+  | { type: 'SELECT_ROOM'; name: string; icon: string; existingScore?: ExistingRoomScore | null }
+  | { type: 'GOTO_STEP'; step: 0 | 1 | 2 | 3 | 4 }
   | { type: 'SET_FACTOR'; key: FactorKey; value: number }
   | { type: 'SET_FEELING'; feeling: string }
   | { type: 'SET_NOTE'; note: string }
   | { type: 'ADD_PENDING_FILE'; file: File; kind: 'PHOTO' | 'VIDEO' | 'VOICE' }
   | { type: 'ROOM_SAVED'; summary: VisitFlowState['lastSaved'] }
-  | { type: 'RESET_FOR_NEW_ROOM' };
+  | { type: 'RESET_FOR_NEW_ROOM' }
+  | { type: 'PREFILL_NEIGHBORHOOD'; data: NeighborhoodDraft | null }
+  | { type: 'SET_NEIGHBORHOOD_FACTOR'; key: 'curbAppeal' | 'streetVibe'; value: number }
+  | { type: 'SET_NEIGHBORHOOD_FEELING'; feeling: string }
+  | { type: 'SET_NEIGHBORHOOD_NOTE'; note: string };
 
 const initialState: VisitFlowState = {
   step: 0,
   roomName: 'Kitchen',
   roomIcon: 'ti-tools-kitchen-2',
-  layout: 7,
-  storage: 5,
-  light: 8,
-  vibe: 9,
-  feeling: 'Calm',
-  note: '',
+  ...NEUTRAL_SCORE,
   pendingRoomFiles: [],
   lastSaved: null,
+  neighborhood: NEUTRAL_NEIGHBORHOOD,
 };
 
 function reducer(state: VisitFlowState, action: Action): VisitFlowState {
   switch (action.type) {
     case 'SELECT_ROOM':
-      return { ...state, roomName: action.name, roomIcon: action.icon };
+      return { ...state, roomName: action.name, roomIcon: action.icon, ...(action.existingScore ?? NEUTRAL_SCORE) };
     case 'GOTO_STEP':
       return { ...state, step: action.step };
     case 'SET_FACTOR':
@@ -58,6 +78,14 @@ function reducer(state: VisitFlowState, action: Action): VisitFlowState {
       return { ...state, lastSaved: action.summary, step: 3 };
     case 'RESET_FOR_NEW_ROOM':
       return { ...initialState, step: 0 };
+    case 'PREFILL_NEIGHBORHOOD':
+      return { ...state, neighborhood: action.data ?? NEUTRAL_NEIGHBORHOOD };
+    case 'SET_NEIGHBORHOOD_FACTOR':
+      return { ...state, neighborhood: { ...state.neighborhood, [action.key]: action.value } };
+    case 'SET_NEIGHBORHOOD_FEELING':
+      return { ...state, neighborhood: { ...state.neighborhood, feeling: action.feeling } };
+    case 'SET_NEIGHBORHOOD_NOTE':
+      return { ...state, neighborhood: { ...state.neighborhood, note: action.note } };
     default:
       return state;
   }

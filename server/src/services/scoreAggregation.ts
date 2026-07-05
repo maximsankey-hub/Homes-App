@@ -28,8 +28,13 @@ export interface PropertyAggregate {
   fitLabel: string;
 }
 
-export function aggregateSelfScores(scores: RoomScore[]): PropertyAggregate {
-  if (scores.length === 0) {
+export interface NeighborhoodScoreLike {
+  curbAppeal: number;
+  streetVibe: number;
+}
+
+export function aggregateSelfScores(scores: RoomScore[], neighborhood?: NeighborhoodScoreLike | null): PropertyAggregate {
+  if (scores.length === 0 && !neighborhood) {
     return {
       score: null,
       scoreColor: '#888780',
@@ -40,25 +45,45 @@ export function aggregateSelfScores(scores: RoomScore[]): PropertyAggregate {
     };
   }
 
-  const emotionalAvg = round1(scores.reduce((sum, s) => sum + emotionalAvgOf(s), 0) / scores.length);
-  const functionalAvg = round1(scores.reduce((sum, s) => sum + functionalAvgOf(s), 0) / scores.length);
-  const avgLayout = round1(scores.reduce((sum, s) => sum + s.layout, 0) / scores.length);
-  const avgStorage = round1(scores.reduce((sum, s) => sum + s.storage, 0) / scores.length);
-  const avgLight = round1(scores.reduce((sum, s) => sum + s.light, 0) / scores.length);
-  const avgVibe = round1(scores.reduce((sum, s) => sum + s.vibe, 0) / scores.length);
+  // Curb appeal reads as a "functional" factor (an objective property trait), street vibe as "emotional"
+  // (how it feels) — mirrors how room scores split layout/storage vs. light/vibe.
+  const emotionalValues = scores.map(emotionalAvgOf);
+  const functionalValues = scores.map(functionalAvgOf);
+  if (neighborhood) {
+    emotionalValues.push(neighborhood.streetVibe);
+    functionalValues.push(neighborhood.curbAppeal);
+  }
+
+  const emotionalAvg = round1(emotionalValues.reduce((sum, v) => sum + v, 0) / emotionalValues.length);
+  const functionalAvg = round1(functionalValues.reduce((sum, v) => sum + v, 0) / functionalValues.length);
   const score = round1((emotionalAvg + functionalAvg) / 2);
+
+  const factorBreakdown: { label: string; value: number }[] = [];
+  if (scores.length > 0) {
+    const avgLayout = round1(scores.reduce((sum, s) => sum + s.layout, 0) / scores.length);
+    const avgStorage = round1(scores.reduce((sum, s) => sum + s.storage, 0) / scores.length);
+    const avgLight = round1(scores.reduce((sum, s) => sum + s.light, 0) / scores.length);
+    const avgVibe = round1(scores.reduce((sum, s) => sum + s.vibe, 0) / scores.length);
+    factorBreakdown.push(
+      { label: 'Natural light', value: avgLight },
+      { label: 'Layout flow', value: avgLayout },
+      { label: 'Storage', value: avgStorage },
+      { label: 'Vibe / feel', value: avgVibe },
+    );
+  }
+  if (neighborhood) {
+    factorBreakdown.push(
+      { label: 'Curb appeal', value: neighborhood.curbAppeal },
+      { label: 'Street vibe', value: neighborhood.streetVibe },
+    );
+  }
 
   return {
     score,
     scoreColor: score >= 8 ? '#1D9E75' : '#534AB7',
     emotionalAvg,
     functionalAvg,
-    factorBreakdown: [
-      { label: 'Natural light', value: avgLight },
-      { label: 'Layout flow', value: avgLayout },
-      { label: 'Storage', value: avgStorage },
-      { label: 'Vibe / feel', value: avgVibe },
-    ],
+    factorBreakdown,
     fitLabel: score >= 8 ? 'Strong lifestyle fit' : 'Moderate lifestyle fit',
   };
 }
@@ -88,7 +113,7 @@ export function secondaryInsights(agg: PropertyAggregate): { icon: string; color
     insights.push({
       icon: 'ti-check',
       color: 'var(--text-success)',
-      text: `${weakest.label} is consistently strong across scored rooms.`,
+      text: `${weakest.label} is consistently strong so far.`,
     });
   }
   return insights;

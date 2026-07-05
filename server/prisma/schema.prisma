@@ -74,6 +74,7 @@ enum CompDiffType {
 
 model Property {
   id            String         @id @default(cuid())
+  isDemo        Boolean        @default(false)
   address       String
   city          String
   state         String
@@ -97,11 +98,12 @@ model Property {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rooms        Room[]
-  media        Media[]
-  renovations  RenovationIdea[]
-  nearbyPlaces NearbyPlace[]
-  scorerNotes  ScorerNote[]
+  rooms              Room[]
+  media              Media[]
+  renovations        RenovationIdea[]
+  nearbyPlaces       NearbyPlace[]
+  scorerNotes        ScorerNote[]
+  neighborhoodScores NeighborhoodScore[]
 }
 
 model ScorerNote {
@@ -139,8 +141,9 @@ model Scorer {
   contact   String?
   createdAt DateTime   @default(now())
 
-  scores RoomScore[]
-  notes  ScorerNote[]
+  scores             RoomScore[]
+  notes              ScorerNote[]
+  neighborhoodScores NeighborhoodScore[]
 }
 
 model RoomScore {
@@ -158,6 +161,21 @@ model RoomScore {
   createdAt DateTime    @default(now())
 
   @@unique([roomId, scorerId])
+}
+
+model NeighborhoodScore {
+  id         String      @id @default(cuid())
+  propertyId String
+  property   Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  scorerId   String
+  scorer     Scorer      @relation(fields: [scorerId], references: [id])
+  curbAppeal Int
+  streetVibe Int
+  feeling    RoomFeeling
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  @@unique([propertyId, scorerId])
 }
 
 model Media {

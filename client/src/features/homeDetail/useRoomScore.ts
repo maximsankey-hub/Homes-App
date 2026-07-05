@@ -20,3 +20,20 @@ export function useUpdateRoomScore(propertyId: string) {
     },
   });
 }
+
+export interface SaveNeighborhoodScoreInput {
+  curbAppeal: number;
+  streetVibe: number;
+  feeling: string;
+  note: string;
+}
+
+export function useUpdateNeighborhoodScore(propertyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SaveNeighborhoodScoreInput) => api.post(`/properties/${propertyId}/neighborhood-score`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.property(propertyId) });
+    },
+  });
+}

@@ -1,11 +1,37 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import type { PropertyDetail } from 'shared';
 import { Icon } from '../../components/common/Icon';
 import { useProperty } from '../homes/useProperties';
 import { CaptureButtons } from './CaptureButtons';
-import { FEELING_ENUM, FEELING_OPTIONS, REFLECTION_PROMPTS, ROOM_OPTIONS } from './roomOptions';
-import { emotionalAvg, functionalAvg, useVisitFlow, type FactorKey } from './useVisitFlow';
-import { useCreateRoom, useSaveRoomScore, useUploadMedia } from './useVisitMutations';
+import { FEELING_ENUM, FEELING_LABEL, FEELING_OPTIONS, REFLECTION_PROMPTS, ROOM_OPTIONS } from './roomOptions';
+import { emotionalAvg, functionalAvg, useVisitFlow, type ExistingRoomScore, type FactorKey, type NeighborhoodDraft } from './useVisitFlow';
+import { useCreateRoom, useSaveNeighborhoodScore, useSaveRoomScore, useUploadMedia } from './useVisitMutations';
+
+function getExistingScoreForRoom(property: PropertyDetail | undefined, roomName: string): ExistingRoomScore | null {
+  const room = property?.rooms.find((r) => r.name === roomName);
+  const score = room?.scores.find((s) => s.scorer.role === 'SELF');
+  if (!score) return null;
+  return {
+    layout: score.layout,
+    storage: score.storage,
+    light: score.light,
+    vibe: score.vibe,
+    feeling: FEELING_LABEL[score.feeling] ?? 'Calm',
+    note: score.note ?? '',
+  };
+}
+
+function getExistingNeighborhoodScore(property: PropertyDetail | undefined): NeighborhoodDraft | null {
+  const score = property?.neighborhoodScore;
+  if (!score) return null;
+  return {
+    curbAppeal: score.curbAppeal,
+    streetVibe: score.streetVibe,
+    feeling: FEELING_LABEL[score.feeling] ?? 'Calm',
+    note: score.note ?? '',
+  };
+}
 
 export function VisitModeFlow() {
   const { propertyId = '' } = useParams();
@@ -16,8 +42,19 @@ export function VisitModeFlow() {
 
   const createRoom = useCreateRoom(propertyId);
   const saveScore = useSaveRoomScore();
+  const saveNeighborhood = useSaveNeighborhoodScore(propertyId);
   const uploadMedia = useUploadMedia(propertyId);
 
+  useEffect(() => {
+    // Prefill the default room and neighborhood score once property data first loads, so a revisit doesn't start blank.
+    if (!property) return;
+    const existing = getExistingScoreForRoom(property, state.roomName);
+    if (existing) dispatch({ type: 'SELECT_ROOM', name: state.roomName, icon: state.roomIcon, existingScore: existing });
+    const existingNeighborhood = getExistingNeighborhoodScore(property);
+    if (existingNeighborhood) dispatch({ type: 'PREFILL_NEIGHBORHOOD', data: existingNeighborhood });
+  }, [property]);
+
+  const isRevisit = !!getExistingScoreForRoom(property, state.roomName);
   const eAvg = emotionalAvg(state);
   const fAvg = functionalAvg(state);
 
@@ -46,6 +83,16 @@ export function VisitModeFlow() {
     });
   };
 
+  const handleSaveNeighborhood = async () => {
+    await saveNeighborhood.mutateAsync({
+      curbAppeal: state.neighborhood.curbAppeal,
+      streetVibe: state.neighborhood.streetVibe,
+      feeling: FEELING_ENUM[state.neighborhood.feeling] ?? 'CALM',
+      note: state.neighborhood.note,
+    });
+    dispatch({ type: 'GOTO_STEP', step: 0 });
+  };
+
   return (
     <div>
       <div style={{ padding: '12px 16px', background: 'var(--surface-2)', borderBottom: '0.5px solid var(--border)' }}>
@@ -61,7 +108,9 @@ export function VisitModeFlow() {
                 <div
                   key={room.name}
                   className={`rc${state.roomName === room.name ? ' sel' : ''}`}
-                  onClick={() => dispatch({ type: 'SELECT_ROOM', name: room.name, icon: room.icon })}
+                  onClick={() =>
+                    dispatch({ type: 'SELECT_ROOM', name: room.name, icon: room.icon, existingScore: getExistingScoreForRoom(property, room.name) })
+                  }
                 >
                   <Icon name={room.icon} size={20} />
                   <span>{room.name}</span>
@@ -72,7 +121,9 @@ export function VisitModeFlow() {
               type="text"
               placeholder="Or type your own room name..."
               value={ROOM_OPTIONS.some((r) => r.name === state.roomName) ? '' : state.roomName}
-              onChange={(e) => dispatch({ type: 'SELECT_ROOM', name: e.target.value, icon: 'ti-home' })}
+              onChange={(e) =>
+                dispatch({ type: 'SELECT_ROOM', name: e.target.value, icon: 'ti-home', existingScore: getExistingScoreForRoom(property, e.target.value) })
+              }
               style={{ marginTop: 8 }}
             />
             <div className="div" />
@@ -84,6 +135,16 @@ export function VisitModeFlow() {
               </div>
             )}
             <div className="div" />
+            <button
+              className="btn btns btnf"
+              style={{ marginBottom: 8, justifyContent: 'space-between' }}
+              onClick={() => dispatch({ type: 'GOTO_STEP', step: 4 })}
+            >
+              <span>
+                <Icon name="ti-map-pin" size={14} /> Score the neighborhood
+              </span>
+              {property?.neighborhoodScore && <Icon name="ti-check" size={14} color="#1D9E75" />}
+            </button>
             <button className="btn btnp btnf" onClick={() => dispatch({ type: 'GOTO_STEP', step: 1 })}>
               Start scoring <Icon name="ti-arrow-right" size={14} />
             </button>
@@ -92,7 +153,14 @@ export function VisitModeFlow() {
 
         {state.step === 1 && (
           <div>
-            <div className="slbl">{state.roomName}</div>
+            <div className="slbl">
+              {state.roomName}
+              {isRevisit && (
+                <span className="badge bb" style={{ marginLeft: 6, fontSize: 10 }}>
+                  Editing previous score
+                </span>
+              )}
+            </div>
             <div className="pcard">
               <p>"{REFLECTION_PROMPTS[state.roomName] ?? REFLECTION_PROMPTS.Kitchen}"</p>
             </div>
@@ -217,6 +285,66 @@ export function VisitModeFlow() {
             <button className="btn btnp btnf" onClick={() => navigate(`/buy/homes/${propertyId}/visit`)}>
               Done with visit
             </button>
+          </div>
+        )}
+
+        {state.step === 4 && (
+          <div>
+            <div className="slbl">Neighborhood</div>
+            <div className="pcard">
+              <p>"Does the block feel like somewhere you'd want to come home to?"</p>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              {(['curbAppeal', 'streetVibe'] as const).map((key) => (
+                <div className="fr" key={key}>
+                  <span className="frl">{key === 'curbAppeal' ? 'Curb appeal' : 'Street / block vibe'}</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={state.neighborhood[key]}
+                    style={{ flex: 1 }}
+                    onChange={(e) => dispatch({ type: 'SET_NEIGHBORHOOD_FACTOR', key, value: Number(e.target.value) })}
+                  />
+                  <span className="frv">{state.neighborhood[key]}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ margin: '10px 0' }}>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Overall feeling</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {FEELING_OPTIONS.map((feeling) => (
+                  <button
+                    key={feeling}
+                    className={`tag${state.neighborhood.feeling === feeling ? ' sb' : ''}`}
+                    onClick={() => dispatch({ type: 'SET_NEIGHBORHOOD_FEELING', feeling })}
+                  >
+                    {feeling}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              className="na"
+              placeholder="Quick thought about the block, street noise, neighbors..."
+              style={{ marginBottom: 10 }}
+              value={state.neighborhood.note}
+              onChange={(e) => dispatch({ type: 'SET_NEIGHBORHOOD_NOTE', note: e.target.value })}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btns" onClick={() => dispatch({ type: 'GOTO_STEP', step: 0 })}>
+                <Icon name="ti-arrow-left" size={13} /> Back
+              </button>
+              <button
+                className="btn btnp btns"
+                style={{ flex: 1, justifyContent: 'center' }}
+                disabled={saveNeighborhood.isPending}
+                onClick={handleSaveNeighborhood}
+              >
+                {saveNeighborhood.isPending ? 'Saving…' : 'Save neighborhood score'} <Icon name="ti-check" size={13} />
+              </button>
+            </div>
           </div>
         )}
       </div>
