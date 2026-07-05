@@ -32,7 +32,7 @@ export interface ExistingRoomScore {
   vibe: number;
   feeling: string;
   note: string;
-  customValues?: Record<string, number>;
+  customValues: Record<string, number>;
 }
 
 export interface CustomMetricLike {
