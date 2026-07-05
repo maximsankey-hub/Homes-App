@@ -8,11 +8,11 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
-export function HomeCard({ property }: { property: PropertySummary }) {
+export function HomeCard({ property, to }: { property: PropertySummary; to?: string }) {
   const navigate = useNavigate();
 
   return (
-    <div className="hcard" onClick={() => navigate(`/buy/homes/${property.id}`)}>
+    <div className="hcard" onClick={() => navigate(to ?? `/buy/homes/${property.id}`)}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 500 }}>{property.address}</div>

@@ -12,7 +12,7 @@ export function useRenovations(propertyId: string | undefined) {
 
 export interface CreateRenovationInput {
   title: string;
-  room: string;
+  room?: string;
   type?: 'COSMETIC' | 'STRUCTURAL';
   costLow?: number;
   costHigh?: number;
@@ -22,7 +22,7 @@ export interface CreateRenovationInput {
 export function useCreateRenovation(propertyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateRenovationInput) => api.post(`/properties/${propertyId}/renovations`, input),
+    mutationFn: (input: CreateRenovationInput) => api.post<RenovationIdea>(`/properties/${propertyId}/renovations`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties', propertyId, 'renovations'] });
     },
@@ -33,6 +33,39 @@ export function useDeleteRenovation(propertyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete(`/renovations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties', propertyId, 'renovations'] });
+    },
+  });
+}
+
+export function useAssignRenovationRoom(propertyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, room }: { id: string; room: string }) => api.patch(`/renovations/${id}`, { room }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties', propertyId, 'renovations'] });
+    },
+  });
+}
+
+export function useEstimateRenovationCost() {
+  return useMutation({
+    mutationFn: ({ description, type }: { description: string; type: 'COSMETIC' | 'STRUCTURAL' }) =>
+      api.post<{ costLow: number; costHigh: number }>('/renovations/estimate-cost', { description, type }),
+  });
+}
+
+export function useUploadRenovationMedia(propertyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ renovationIdeaId, file, type }: { renovationIdeaId: string; file: File; type: 'PHOTO' | 'VIDEO' | 'VOICE' }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', type);
+      formData.append('renovationIdeaId', renovationIdeaId);
+      return api.upload(`/properties/${propertyId}/media`, formData);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties', propertyId, 'renovations'] });
     },

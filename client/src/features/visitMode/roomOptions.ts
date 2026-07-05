@@ -28,3 +28,11 @@ export const REFLECTION_PROMPTS: Record<string, string> = {
 };
 
 export const FEELING_OPTIONS = ['Excited', 'Calm', 'Uncertain', 'Overwhelmed', 'Inspired'] as const;
+
+export const FEELING_ENUM: Record<string, string> = {
+  Excited: 'EXCITED',
+  Calm: 'CALM',
+  Uncertain: 'UNCERTAIN',
+  Overwhelmed: 'OVERWHELMED',
+  Inspired: 'INSPIRED',
+};

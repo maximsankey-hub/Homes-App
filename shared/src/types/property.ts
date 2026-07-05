@@ -46,13 +46,14 @@ export interface RenovationIdea {
   id: string;
   propertyId: string;
   title: string;
-  room: string;
+  room: string | null;
   type: IdeaType;
   costLow: number;
   costHigh: number;
   feasibility: number;
   need: string | null;
   constraintNote: string | null;
+  media: Media[];
 }
 
 export interface NearbyPlace {

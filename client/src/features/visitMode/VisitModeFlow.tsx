@@ -3,17 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { useProperty } from '../homes/useProperties';
 import { CaptureButtons } from './CaptureButtons';
-import { FEELING_OPTIONS, REFLECTION_PROMPTS, ROOM_OPTIONS } from './roomOptions';
+import { FEELING_ENUM, FEELING_OPTIONS, REFLECTION_PROMPTS, ROOM_OPTIONS } from './roomOptions';
 import { emotionalAvg, functionalAvg, useVisitFlow, type FactorKey } from './useVisitFlow';
 import { useCreateRoom, useSaveRoomScore, useUploadMedia } from './useVisitMutations';
-
-const FEELING_ENUM: Record<string, string> = {
-  Excited: 'EXCITED',
-  Calm: 'CALM',
-  Uncertain: 'UNCERTAIN',
-  Overwhelmed: 'OVERWHELMED',
-  Inspired: 'INSPIRED',
-};
 
 export function VisitModeFlow() {
   const { propertyId = '' } = useParams();

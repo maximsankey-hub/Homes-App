@@ -19,6 +19,7 @@ A running backlog of features and fixes. Pick items off this list to build next;
 - [x] **No way to delete anything** — properties, renovation ideas, improvement ideas, and media are all add-only. A typo or duplicate sticks around forever.
 - [ ] **Reseeding wipes everything, not just demo data** — running the seed script deletes *all* properties/scores/media, including anything you've genuinely added, with no "reset demo only" option.
 - [ ] **"Invite a partner" doesn't let the partner actually do anything** — it creates a named scorer, but there's no way for that person to log in and submit their own room scores (ties directly into the Accounts & Auth item).
+- [x] **Starting a new visit always defaults to the Elm St house** — there's no way to pick which property you're visiting; add a property selector when starting a visit so it isn't hardcoded/defaulted.
 
 ## Accounts & Auth (the big one)
 
@@ -30,16 +31,22 @@ Real multi-user support touches a lot of the app:
 
 ## Newly requested items
 
-- [ ] **Add renovation ideas from the Visit page** — currently reno ideas can only be added elsewhere; add the ability to create one directly while on the main Visit page. Two entry points: (1) while scoring a specific room, add a reno idea pre-tagged to that room, or (2) add a general reno idea with no room tag and assign it to a room afterward. Both paths should feel natural, not bolted on.
+- [x] **Add renovation ideas from the Visit page** — currently reno ideas can only be added elsewhere; add the ability to create one directly while on the main Visit page. Two entry points: (1) while scoring a specific room, add a reno idea pre-tagged to that room, or (2) add a general reno idea with no room tag and assign it to a room afterward. Both paths should feel natural, not bolted on.
   - **Cost estimation on the add-reno-idea form** — when creating a reno idea, let the user choose between:
     1. AI-estimated cost range — user types a short free-text description, AI returns an estimated cost range. For now, stub this with dummy/mock data; wire up the real Claude API call later (same pattern as the existing "AI insights" mock-to-real swap-in below).
     2. Manual cost entry — user types in their own expected cost directly.
+  - **Photos tagged to a renovation idea** — let the user attach pictures directly to a reno idea (not just to a room), so viewing a reno idea shows the photos tied to it specifically.
 - [ ] **Auto-fill property details from an address (Zillow)** — when adding/editing a property, let the user enter just the address and pull in list price, sq ft, bed/bath count, and year built automatically instead of typing each field by hand. Real MLS data is gated behind broker/MLS-board sponsorship (RESO Web API via MLS Grid, or Zillow's Bridge Interactive feed) — no free public tier exists for either. Realistic options for this app:
   - **RentCast API** — free tier (~50 requests/month); returns sqft/beds/baths/year built plus an estimated value. Best starting point.
   - **County assessor / property tax open data portals** — genuinely free, authoritative for sqft/year built/bed-bath count (public record). No list price, since that's private MLS data — would still need manual entry for price. Coverage/format varies by county.
   - **Unofficial scraper APIs (RapidAPI "Zillow"/"Redfin" listings)** — free tiers exist but scrape rather than use an official feed, violate ToS, and can break without notice. Fine for a quick prototype, not for anything long-term.
   - **Paid property-data APIs (ATTOM, Estated, HouseCanary)** — more robust, but full access costs money.
   - Likely approach: RentCast/county data for structural facts, manual entry for list price. Flag as a research spike before implementation.
+- [ ] **Score "neighborhood feel" during a visit** — add a separate scoring step, distinct from individual room scoring, for the overall look/feel of the neighborhood (e.g. curb appeal, street/block vibe). This should factor into the property's overall score alongside the room scores, not just be a standalone note.
+- [ ] **Pre-populate previous scores on a revisit** — if a property already has a prior visit, starting a new visit should pre-fill all previous selections (room scores, and neighborhood feel once that exists) instead of starting blank, since you can rescore anything on a revisit but usually you're just confirming/tweaking, not starting over.
+- [ ] **User-defined custom scoring metrics** — let the user add their own scoring metric (e.g. "accessibility"), alongside the built-in ones like natural light/storage, that can be scored per-room or per-property. When creating a custom metric, the user classifies it as either **emotional** or **functional**. Setup/creation of new custom metrics only happens from the profile screen (during profile creation/update) — not mid-visit; once defined, the metric becomes available to score like any other during a visit.
+- [x] **Room score breakdown when reviewing a past visit** — on the Visit tab when reviewing a previous visit, clicking a room should reveal the full score breakdown given for that room (storage, natural light, etc. — all the individual sliders), not just the summary. Summary view for the room list itself stays as-is; the breakdown only shows up on click.
+  - **Editable after the fact** — from that same breakdown view, let the user adjust the individual scores for that room (not just view them) and save the changes.
 
 ## Other feature ideas worth considering
 

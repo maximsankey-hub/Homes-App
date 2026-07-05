@@ -13,7 +13,7 @@ mediaRouter.post('/properties/:id/media', upload.single('file'), async (req, res
     res.status(400).json({ error: 'file is required' });
     return;
   }
-  const { type, roomId } = req.body ?? {};
+  const { type, roomId, renovationIdeaId } = req.body ?? {};
   if (!['PHOTO', 'VIDEO', 'VOICE'].includes(type)) {
     res.status(400).json({ error: 'type must be PHOTO, VIDEO, or VOICE' });
     return;
@@ -36,6 +36,7 @@ mediaRouter.post('/properties/:id/media', upload.single('file'), async (req, res
     data: {
       propertyId: req.params.id,
       roomId: roomId || null,
+      renovationIdeaId: renovationIdeaId || null,
       type,
       filePath: publicUrlData.publicUrl,
       mimeType: file.mimetype,

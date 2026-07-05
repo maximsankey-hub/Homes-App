@@ -161,16 +161,18 @@ model RoomScore {
 }
 
 model Media {
-  id         String    @id @default(cuid())
-  propertyId String
-  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  roomId     String?
-  room       Room?     @relation(fields: [roomId], references: [id])
-  type       MediaType
-  filePath   String
-  mimeType   String
-  sizeBytes  Int
-  createdAt  DateTime  @default(now())
+  id               String          @id @default(cuid())
+  propertyId       String
+  property         Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomId           String?
+  room             Room?           @relation(fields: [roomId], references: [id])
+  renovationIdeaId String?
+  renovationIdea   RenovationIdea? @relation(fields: [renovationIdeaId], references: [id], onDelete: Cascade)
+  type             MediaType
+  filePath         String
+  mimeType         String
+  sizeBytes        Int
+  createdAt        DateTime        @default(now())
 }
 
 model RenovationIdea {
@@ -178,7 +180,7 @@ model RenovationIdea {
   propertyId     String
   property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   title          String
-  room           String
+  room           String?
   type           IdeaType
   costLow        Int
   costHigh       Int
@@ -186,6 +188,8 @@ model RenovationIdea {
   need           String?
   constraintNote String?
   createdAt      DateTime @default(now())
+
+  media Media[]
 }
 
 model NearbyPlace {

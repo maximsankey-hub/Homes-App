@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { useUiStore } from '../../store/uiStore';
-import { useDeleteRenovation, useRenovations } from './useRenovations';
+import { CaptureButtons } from '../visitMode/CaptureButtons';
+import { useAssignRenovationRoom, useDeleteRenovation, useRenovations, useUploadRenovationMedia } from './useRenovations';
 
 const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
   COSMETIC: { bg: '#EAF3DE', color: '#27500A' },
@@ -13,8 +14,11 @@ export function RenoTab() {
   const { propertyId } = useParams();
   const { data: ideas, isLoading } = useRenovations(propertyId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [roomDraft, setRoomDraft] = useState<Record<string, string>>({});
   const openModal = useUiStore((s) => s.openModal);
   const deleteRenovation = useDeleteRenovation(propertyId ?? '');
+  const assignRoom = useAssignRenovationRoom(propertyId ?? '');
+  const uploadMedia = useUploadRenovationMedia(propertyId ?? '');
 
   if (isLoading || !ideas) return <div>Loading…</div>;
 
@@ -46,7 +50,9 @@ export function RenoTab() {
                   <span className="badge" style={{ background: style.bg, color: style.color }}>
                     {idea.type === 'COSMETIC' ? 'Cosmetic' : 'Structural'}
                   </span>
-                  <span className="badge bb">{idea.room}</span>
+                  <span className={`badge ${idea.room ? 'bb' : ''}`} style={idea.room ? undefined : { background: 'var(--surface-1)', color: 'var(--text-muted)' }}>
+                    {idea.room ?? 'Unassigned'}
+                  </span>
                 </div>
               </div>
               <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-accent)' }}>
@@ -77,6 +83,49 @@ export function RenoTab() {
                   <span>{idea.constraintNote}</span>
                 </div>
               )}
+
+              {!idea.room && (
+                <div style={{ display: 'flex', gap: 6, margin: '8px 0' }}>
+                  <input
+                    type="text"
+                    placeholder="Assign to a room..."
+                    value={roomDraft[idea.id] ?? ''}
+                    onChange={(e) => setRoomDraft((prev) => ({ ...prev, [idea.id]: e.target.value }))}
+                    style={{ marginBottom: 0, flex: 1 }}
+                  />
+                  <button
+                    className="btn btns"
+                    disabled={!roomDraft[idea.id]?.trim() || assignRoom.isPending}
+                    onClick={() => assignRoom.mutate({ id: idea.id, room: roomDraft[idea.id].trim() })}
+                  >
+                    Assign
+                  </button>
+                </div>
+              )}
+
+              {idea.media.length > 0 && (
+                <div className="mgrid" style={{ margin: '8px 0' }}>
+                  {idea.media.map((media, i) => (
+                    <div
+                      className="mth"
+                      key={media.id}
+                      onClick={() => openModal('viewMedia', { media: idea.media, index: i })}
+                    >
+                      {media.type === 'PHOTO' ? (
+                        <img src={media.filePath} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div className="tb">
+                          <Icon name={media.type === 'VIDEO' ? 'ti-video' : 'ti-microphone'} size={22} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p style={{ fontSize: 11, fontWeight: 500, margin: '8px 0 6px' }}>Attach photos</p>
+              <CaptureButtons
+                onCapture={(file, kind) => uploadMedia.mutate({ renovationIdeaId: idea.id, file, kind })}
+              />
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               <button className="btn btns" style={{ flex: 1 }} onClick={() => toggle(idea.id)}>
