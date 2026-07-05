@@ -9,6 +9,8 @@ interface AuthState {
   signUp: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => {
@@ -35,6 +37,16 @@ export const useAuthStore = create<AuthState>((set) => {
     },
     signOut: async () => {
       await supabase.auth.signOut();
+    },
+    resetPassword: async (email) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+    },
+    updatePassword: async (password) => {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
     },
   };
 });

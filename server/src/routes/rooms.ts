@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { emotionalAvgOf, functionalAvgOf, toScoredCustom } from '../services/scoreAggregation.js';
 
 export const roomsRouter = Router();
 
@@ -41,22 +42,50 @@ roomsRouter.post('/rooms/:roomId/scores', async (req, res) => {
     return;
   }
 
-  const { layout, storage, light, vibe, feeling, note } = req.body ?? {};
+  const { layout, storage, light, vibe, feeling, note, customScores } = req.body ?? {};
   if ([layout, storage, light, vibe].some((v) => typeof v !== 'number')) {
     res.status(400).json({ error: 'layout, storage, light, vibe must be numbers' });
     return;
   }
+  const customEntries: { metricId: string; value: number }[] = Array.isArray(customScores)
+    ? customScores.filter((c) => typeof c?.metricId === 'string' && typeof c?.value === 'number')
+    : [];
   const scorerId = req.scorerId!;
 
   const score = await prisma.roomScore.upsert({
     where: { roomId_scorerId: { roomId: req.params.roomId, scorerId } },
-    update: { layout, storage, light, vibe, feeling, note },
-    create: { roomId: req.params.roomId, scorerId, layout, storage, light, vibe, feeling, note },
+    update: {
+      layout,
+      storage,
+      light,
+      vibe,
+      feeling,
+      note,
+      customScores: {
+        deleteMany: {},
+        create: customEntries.map((c) => ({ metricId: c.metricId, value: c.value })),
+      },
+    },
+    create: {
+      roomId: req.params.roomId,
+      scorerId,
+      layout,
+      storage,
+      light,
+      vibe,
+      feeling,
+      note,
+      customScores: { create: customEntries.map((c) => ({ metricId: c.metricId, value: c.value })) },
+    },
+    include: { customScores: { include: { metric: true } } },
   });
+
+  const mappedCustomScores = toScoredCustom(score.customScores);
 
   res.status(201).json({
     ...score,
-    emotionalAvg: (score.light + score.vibe) / 2,
-    functionalAvg: (score.layout + score.storage) / 2,
+    customScores: mappedCustomScores,
+    emotionalAvg: emotionalAvgOf({ ...score, customScores: mappedCustomScores }),
+    functionalAvg: functionalAvgOf({ ...score, customScores: mappedCustomScores }),
   });
 });

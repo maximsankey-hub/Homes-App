@@ -7,6 +7,7 @@ import { FEELING_ENUM, FEELING_LABEL, FEELING_OPTIONS } from '../visitMode/roomO
 import { useUiStore } from '../../store/uiStore';
 import { useProperty } from '../homes/useProperties';
 import { useHousehold } from '../household/useHousehold';
+import { useCustomMetrics } from '../profile/useCustomMetrics';
 import { useUpdateNeighborhoodScore, useUpdateRoomScore } from './useRoomScore';
 
 interface ScoreDraft {
@@ -16,6 +17,7 @@ interface ScoreDraft {
   vibe: number;
   feeling: string;
   note: string;
+  customValues: Record<string, number>;
 }
 
 interface NeighborhoodDraft {
@@ -29,6 +31,7 @@ export function VisitTab() {
   const { propertyId = '' } = useParams();
   const { data: property, isLoading } = useProperty(propertyId);
   const { data: household } = useHousehold();
+  const { data: customMetrics = [] } = useCustomMetrics();
   const openModal = useUiStore((s) => s.openModal);
   const updateScore = useUpdateRoomScore(propertyId);
   const updateNeighborhood = useUpdateNeighborhoodScore(propertyId);
@@ -60,13 +63,16 @@ export function VisitTab() {
       vibe: room.myScore.vibe,
       feeling: FEELING_LABEL[room.myScore.feeling] ?? 'Calm',
       note: room.myScore.note ?? '',
+      customValues: Object.fromEntries(room.myScore.customScores.map((c) => [c.metricId, c.value])),
     });
   };
 
   const saveDraft = (roomId: string) => {
     if (!draft) return;
+    const { customValues, ...rest } = draft;
+    const customScores = customMetrics.map((m) => ({ metricId: m.id, value: customValues[m.id] ?? 5 }));
     updateScore.mutate(
-      { roomId, ...draft, feeling: FEELING_ENUM[draft.feeling] ?? 'CALM' },
+      { roomId, ...rest, feeling: FEELING_ENUM[draft.feeling] ?? 'CALM', customScores },
       { onSuccess: () => setExpandedRoomId(null) },
     );
   };
@@ -168,6 +174,23 @@ export function VisitTab() {
                         onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })}
                       />
                       <span className="frv">{draft[key]}</span>
+                    </div>
+                  ))}
+                  {customMetrics.map((metric) => (
+                    <div className="fr" key={metric.id}>
+                      <span className="frl">{metric.label}</span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={draft.customValues[metric.id] ?? 5}
+                        style={{ flex: 1 }}
+                        onChange={(e) =>
+                          setDraft({ ...draft, customValues: { ...draft.customValues, [metric.id]: Number(e.target.value) } })
+                        }
+                      />
+                      <span className="frv">{draft.customValues[metric.id] ?? 5}</span>
                     </div>
                   ))}
                   <div style={{ margin: '8px 0' }}>

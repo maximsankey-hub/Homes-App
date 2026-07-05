@@ -17,6 +17,7 @@ export interface UpdateProfileInput {
   weightEmotional?: number;
   weightStorage?: number;
   weightLight?: number;
+  weightNeighborhood?: number;
   aestheticStyle?: string;
   tags?: { label: string; source: 'MANUAL' | 'AI_MAPPED' }[];
 }

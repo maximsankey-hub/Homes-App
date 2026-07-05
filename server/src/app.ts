@@ -12,6 +12,7 @@ import { compareRouter } from './routes/compare.js';
 import { listingRouter } from './routes/listing.js';
 import { neighborhoodScoreRouter } from './routes/neighborhoodScore.js';
 import { householdRouter } from './routes/household.js';
+import { customMetricsRouter } from './routes/customMetrics.js';
 import { requireAuth, requireHousehold } from './middleware/auth.js';
 import { clientDistDir } from './lib/paths.js';
 
@@ -41,6 +42,7 @@ app.use('/api/scorers', scorersRouter);
 app.use('/api', renovationsRouter);
 app.use('/api', neighborhoodScoreRouter);
 app.use('/api/listing', listingRouter);
+app.use('/api/custom-metrics', customMetricsRouter);
 
 // Local-only convenience: `npm run build && npm start` previews the production
 // client build without Vercel. On Vercel, static hosting is handled separately

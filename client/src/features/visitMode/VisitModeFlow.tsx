@@ -4,6 +4,8 @@ import type { PropertyDetail } from 'shared';
 import { Icon } from '../../components/common/Icon';
 import { useProperty } from '../homes/useProperties';
 import { useHousehold } from '../household/useHousehold';
+import { useCustomMetrics } from '../profile/useCustomMetrics';
+import { useUiStore } from '../../store/uiStore';
 import { CaptureButtons } from './CaptureButtons';
 import { FEELING_ENUM, FEELING_LABEL, FEELING_OPTIONS, REFLECTION_PROMPTS, ROOM_OPTIONS } from './roomOptions';
 import { emotionalAvg, functionalAvg, useVisitFlow, type ExistingRoomScore, type FactorKey, type NeighborhoodDraft } from './useVisitFlow';
@@ -20,6 +22,7 @@ function getExistingScoreForRoom(property: PropertyDetail | undefined, roomName:
     vibe: score.vibe,
     feeling: FEELING_LABEL[score.feeling] ?? 'Calm',
     note: score.note ?? '',
+    customValues: Object.fromEntries(score.customScores.map((c) => [c.metricId, c.value])),
   };
 }
 
@@ -39,9 +42,11 @@ export function VisitModeFlow() {
   const navigate = useNavigate();
   const { data: property } = useProperty(propertyId);
   const { data: household } = useHousehold();
+  const { data: customMetrics = [] } = useCustomMetrics();
   const myScorerId = household?.members.find((m) => m.isYou)?.id;
   const { state, dispatch } = useVisitFlow();
   const [untaggedCount, setUntaggedCount] = useState(0);
+  const openModal = useUiStore((s) => s.openModal);
 
   const createRoom = useCreateRoom(propertyId);
   const saveScore = useSaveRoomScore();
@@ -58,8 +63,8 @@ export function VisitModeFlow() {
   }, [property, myScorerId]);
 
   const isRevisit = !!getExistingScoreForRoom(property, state.roomName, myScorerId);
-  const eAvg = emotionalAvg(state);
-  const fAvg = functionalAvg(state);
+  const eAvg = emotionalAvg(state, customMetrics);
+  const fAvg = functionalAvg(state, customMetrics);
 
   const handleQuickCapture = (file: File, kind: 'PHOTO' | 'VIDEO' | 'VOICE') => {
     uploadMedia.mutate({ file, type: kind });
@@ -76,6 +81,7 @@ export function VisitModeFlow() {
       vibe: state.vibe,
       feeling: FEELING_ENUM[state.feeling] ?? 'CALM',
       note: state.note,
+      customScores: customMetrics.map((m) => ({ metricId: m.id, value: state.customValues[m.id] ?? 5 })),
     });
     for (const pending of state.pendingRoomFiles) {
       await uploadMedia.mutateAsync({ file: pending.file, type: pending.kind, roomId: room.id });
@@ -138,16 +144,31 @@ export function VisitModeFlow() {
               </div>
             )}
             <div className="div" />
-            <button
-              className="btn btns btnf"
-              style={{ marginBottom: 8, justifyContent: 'space-between' }}
+            <div
               onClick={() => dispatch({ type: 'GOTO_STEP', step: 4 })}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                background: 'var(--bg-accent)',
+                border: '0.5px solid var(--border-accent)',
+                borderRadius: 12,
+                padding: '14px 16px',
+                marginBottom: 10,
+                cursor: 'pointer',
+              }}
             >
-              <span>
-                <Icon name="ti-map-pin" size={14} /> Score the neighborhood
-              </span>
-              {property?.neighborhoodScore && <Icon name="ti-check" size={14} color="#1D9E75" />}
-            </button>
+              <Icon name="ti-map-pin" size={26} color="var(--text-accent)" />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-accent)' }}>Score the neighborhood</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>Curb appeal, street vibe, and overall feel</div>
+              </div>
+              {property?.neighborhoodScore ? (
+                <Icon name="ti-check" size={18} color="#1D9E75" />
+              ) : (
+                <Icon name="ti-arrow-right" size={16} color="var(--text-accent)" />
+              )}
+            </div>
             <button className="btn btnp btnf" onClick={() => dispatch({ type: 'GOTO_STEP', step: 1 })}>
               Start scoring <Icon name="ti-arrow-right" size={14} />
             </button>
@@ -185,6 +206,21 @@ export function VisitModeFlow() {
                   <span className="frv">{state[key]}</span>
                 </div>
               ))}
+              {customMetrics.map((metric) => (
+                <div className="fr" key={metric.id}>
+                  <span className="frl">{metric.label}</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={state.customValues[metric.id] ?? 5}
+                    style={{ flex: 1 }}
+                    onChange={(e) => dispatch({ type: 'SET_CUSTOM_FACTOR', metricId: metric.id, value: Number(e.target.value) })}
+                  />
+                  <span className="frv">{state.customValues[metric.id] ?? 5}</span>
+                </div>
+              ))}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '10px 0' }}>
               <div style={{ textAlign: 'center', padding: 9, background: 'var(--surface-2)', border: '0.5px solid var(--border)', borderRadius: 9 }}>
@@ -203,6 +239,13 @@ export function VisitModeFlow() {
               value={state.note}
               onChange={(e) => dispatch({ type: 'SET_NOTE', note: e.target.value })}
             />
+            <button
+              className="btn btns btnf"
+              style={{ marginBottom: 10 }}
+              onClick={() => openModal('addRenovation', { propertyId, room: state.roomName })}
+            >
+              <Icon name="ti-hammer" size={14} /> Add a renovation idea for this room
+            </button>
             <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 7 }}>Capture this room</p>
             <CaptureButtons onCapture={(file, kind) => dispatch({ type: 'ADD_PENDING_FILE', file, kind })} />
             {state.pendingRoomFiles.length > 0 && (

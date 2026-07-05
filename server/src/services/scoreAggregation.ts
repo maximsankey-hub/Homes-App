@@ -1,22 +1,36 @@
-import type { RoomScore } from '@prisma/client';
+import type { MetricCategory, RoomScore } from '@prisma/client';
+
+export interface ScoredCustomValue {
+  metricId: string;
+  value: number;
+  category: MetricCategory;
+  label: string;
+}
 
 export interface ScoredRoom {
   layout: number;
   storage: number;
   light: number;
   vibe: number;
+  customScores?: ScoredCustomValue[];
 }
 
 export function emotionalAvgOf(r: ScoredRoom): number {
-  return (r.light + r.vibe) / 2;
+  const values = [r.light, r.vibe, ...(r.customScores ?? []).filter((c) => c.category === 'EMOTIONAL').map((c) => c.value)];
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 export function functionalAvgOf(r: ScoredRoom): number {
-  return (r.layout + r.storage) / 2;
+  const values = [r.layout, r.storage, ...(r.customScores ?? []).filter((c) => c.category === 'FUNCTIONAL').map((c) => c.value)];
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+export function toScoredCustom(raw: { metricId: string; value: number; metric: { category: MetricCategory; label: string } }[]): ScoredCustomValue[] {
+  return raw.map((c) => ({ metricId: c.metricId, value: c.value, category: c.metric.category, label: c.metric.label }));
 }
 
 export interface PropertyAggregate {
@@ -33,7 +47,9 @@ export interface NeighborhoodScoreLike {
   streetVibe: number;
 }
 
-export function aggregateSelfScores(scores: RoomScore[], neighborhood?: NeighborhoodScoreLike | null): PropertyAggregate {
+type AggregatableScore = RoomScore & { customScores?: ScoredCustomValue[] };
+
+export function aggregateSelfScores(scores: AggregatableScore[], neighborhood?: NeighborhoodScoreLike | null): PropertyAggregate {
   if (scores.length === 0 && !neighborhood) {
     return {
       score: null,
@@ -70,6 +86,18 @@ export function aggregateSelfScores(scores: RoomScore[], neighborhood?: Neighbor
       { label: 'Storage', value: avgStorage },
       { label: 'Vibe / feel', value: avgVibe },
     );
+
+    const customValuesByLabel = new Map<string, number[]>();
+    for (const s of scores) {
+      for (const c of s.customScores ?? []) {
+        const arr = customValuesByLabel.get(c.label) ?? [];
+        arr.push(c.value);
+        customValuesByLabel.set(c.label, arr);
+      }
+    }
+    for (const [label, values] of customValuesByLabel) {
+      factorBreakdown.push({ label, value: round1(values.reduce((sum, v) => sum + v, 0) / values.length) });
+    }
   }
   if (neighborhood) {
     factorBreakdown.push(

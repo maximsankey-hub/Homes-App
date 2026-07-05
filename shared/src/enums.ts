@@ -8,3 +8,4 @@ export type ProfileMethod = 'TAGS' | 'FREE_TEXT' | 'BOTH';
 export type TagSource = 'MANUAL' | 'AI_MAPPED';
 export type PlaceCategory = 'GROCERY' | 'PARKS' | 'SCHOOLS' | 'COFFEE' | 'GYMS' | 'FITNESS' | 'RESTAURANTS' | 'OTHER';
 export type CompDiffType = 'ABOVE' | 'BELOW' | 'WITHIN';
+export type MetricCategory = 'EMOTIONAL' | 'FUNCTIONAL';

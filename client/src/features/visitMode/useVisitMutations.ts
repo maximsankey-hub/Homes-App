@@ -16,6 +16,7 @@ export interface SaveScoreInput {
   vibe: number;
   feeling: string;
   note: string;
+  customScores: { metricId: string; value: number }[];
 }
 
 export function useSaveRoomScore() {

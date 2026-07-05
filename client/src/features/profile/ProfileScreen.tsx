@@ -1,13 +1,27 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { useProfile, useUpdateProfile } from './useProfile';
+import { useCreateCustomMetric, useCustomMetrics, useDeleteCustomMetric, useUpdateCustomMetricWeight } from './useCustomMetrics';
 
 export function ProfileScreen() {
   const { data: profile, isLoading } = useProfile();
+  const { data: customMetrics } = useCustomMetrics();
   const updateProfile = useUpdateProfile();
+  const updateWeight = useUpdateCustomMetricWeight();
+  const createMetric = useCreateCustomMetric();
+  const deleteMetric = useDeleteCustomMetric();
   const navigate = useNavigate();
+  const [newLabel, setNewLabel] = useState('');
+  const [newCategory, setNewCategory] = useState<'EMOTIONAL' | 'FUNCTIONAL'>('EMOTIONAL');
 
   if (isLoading || !profile) return <div className="pad">Loading…</div>;
+
+  const handleAddMetric = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    createMetric.mutate({ label, category: newCategory }, { onSuccess: () => setNewLabel('') });
+  };
 
   return (
     <div className="pad">
@@ -75,6 +89,7 @@ export function ProfileScreen() {
             { key: 'weightEmotional' as const, label: 'Emotional fit' },
             { key: 'weightStorage' as const, label: 'Storage' },
             { key: 'weightLight' as const, label: 'Natural light' },
+            { key: 'weightNeighborhood' as const, label: 'Neighborhood appeal' },
           ]
         ).map(({ key, label }) => (
           <div className="fr" key={key}>
@@ -91,7 +106,72 @@ export function ProfileScreen() {
             <span className="frv">{profile[key]}</span>
           </div>
         ))}
+        {customMetrics?.map((metric) => (
+          <div className="fr" key={metric.id}>
+            <span className="frl">{metric.label}</span>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={metric.weight}
+              style={{ flex: 1 }}
+              onChange={(e) => updateWeight.mutate({ id: metric.id, weight: Number(e.target.value) })}
+            />
+            <span className="frv">{metric.weight}</span>
+          </div>
+        ))}
       </div>
+
+      <div className="div" />
+
+      <div className="card">
+        <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 10 }}>Custom scoring metrics</p>
+        {(!customMetrics || customMetrics.length === 0) && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No custom metrics yet — add one below.</span>
+        )}
+        {customMetrics?.map((metric) => (
+          <div key={metric.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+            <span style={{ fontSize: 13 }}>
+              {metric.label}{' '}
+              <span className={`badge ${metric.category === 'EMOTIONAL' ? 'bp' : 'bt'}`}>
+                {metric.category === 'EMOTIONAL' ? 'Emotional' : 'Functional'}
+              </span>
+            </span>
+            <button
+              className="btn btns"
+              style={{ color: 'var(--text-danger)' }}
+              onClick={() => {
+                if (window.confirm(`Delete "${metric.label}"?`)) deleteMetric.mutate(metric.id);
+              }}
+              aria-label={`Delete ${metric.label}`}
+            >
+              <Icon name="ti-trash" size={14} />
+            </button>
+          </div>
+        ))}
+        <div className="div" />
+        <input
+          type="text"
+          placeholder="New metric name (e.g. Accessibility)"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          style={{ marginBottom: 8 }}
+        />
+        <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+          {(['EMOTIONAL', 'FUNCTIONAL'] as const).map((cat) => (
+            <button key={cat} className={`tag${newCategory === cat ? ' sb' : ''}`} onClick={() => setNewCategory(cat)}>
+              {cat === 'EMOTIONAL' ? 'Emotional' : 'Functional'}
+            </button>
+          ))}
+        </div>
+        <button className="btn btnp btnf" disabled={!newLabel.trim() || createMetric.isPending} onClick={handleAddMetric}>
+          <Icon name="ti-plus" size={14} /> Add metric
+        </button>
+      </div>
+
+      <div className="div" />
+
       <button className="btn btnp btnf" style={{ marginBottom: 8 }} onClick={() => navigate('/buy/onboarding')}>
         <Icon name="ti-refresh" size={15} /> Update profile
       </button>

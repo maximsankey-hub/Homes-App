@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Badge, PropertyDetail, PropertySummary } from 'shared';
 import { prisma } from '../lib/prisma.js';
 import { formatK } from '../lib/format.js';
-import { aggregateSelfScores, secondaryInsights } from '../services/scoreAggregation.js';
+import { aggregateSelfScores, emotionalAvgOf, functionalAvgOf, secondaryInsights, toScoredCustom } from '../services/scoreAggregation.js';
 import { getPropertyOverviewInsights } from '../services/aiInsights.js';
 import { buildPartnerComparison } from '../services/partnerComparison.js';
 
@@ -25,7 +25,7 @@ propertiesRouter.get('/', async (req, res) => {
   const properties = await prisma.property.findMany({
     where: { householdId: req.householdId },
     include: {
-      rooms: { include: { scores: true } },
+      rooms: { include: { scores: { include: { customScores: { include: { metric: true } } } } } },
       media: true,
       neighborhoodScores: true,
     },
@@ -33,7 +33,7 @@ propertiesRouter.get('/', async (req, res) => {
   });
 
   const summaries: PropertySummary[] = properties.map((p) => {
-    const allScores = p.rooms.flatMap((r) => r.scores);
+    const allScores = p.rooms.flatMap((r) => r.scores).map((s) => ({ ...s, customScores: toScoredCustom(s.customScores) }));
     const neighborhood = p.neighborhoodScores.find((n) => n.scorerId === req.scorerId) ?? null;
     const agg = aggregateSelfScores(allScores, neighborhood);
     return {
@@ -120,7 +120,7 @@ propertiesRouter.get('/:id', async (req, res) => {
   const property = await prisma.property.findFirst({
     where: { id: req.params.id, householdId: req.householdId },
     include: {
-      rooms: { include: { scores: { include: { scorer: true } }, media: true } },
+      rooms: { include: { scores: { include: { scorer: true, customScores: { include: { metric: true } } } }, media: true } },
       media: true,
       nearbyPlaces: true,
       neighborhoodScores: { include: { scorer: true } },
@@ -133,7 +133,7 @@ propertiesRouter.get('/:id', async (req, res) => {
   }
 
   const myNeighborhoodScore = property.neighborhoodScores.find((n) => n.scorerId === req.scorerId) ?? null;
-  const allScores = property.rooms.flatMap((r) => r.scores);
+  const allScores = property.rooms.flatMap((r) => r.scores).map((s) => ({ ...s, customScores: toScoredCustom(s.customScores) }));
   const agg = aggregateSelfScores(allScores, myNeighborhoodScore);
 
   const untaggedMedia = property.media.filter((m) => m.roomId === null);
@@ -154,27 +154,31 @@ propertiesRouter.get('/:id', async (req, res) => {
       sizeBytes: m.sizeBytes,
       createdAt: m.createdAt.toISOString(),
     })),
-    scores: r.scores.map((s) => ({
-      id: s.id,
-      roomId: s.roomId,
-      scorer: {
-        id: s.scorer.id,
-        name: s.scorer.name,
-        role: s.scorer.role,
-        initials: s.scorer.initials,
-        colorHex: s.scorer.colorHex,
-        contact: s.scorer.contact,
-      },
-      layout: s.layout,
-      storage: s.storage,
-      light: s.light,
-      vibe: s.vibe,
-      feeling: s.feeling,
-      note: s.note,
-      emotionalAvg: (s.light + s.vibe) / 2,
-      functionalAvg: (s.layout + s.storage) / 2,
-      createdAt: s.createdAt.toISOString(),
-    })),
+    scores: r.scores.map((s) => {
+      const customScores = toScoredCustom(s.customScores);
+      return {
+        id: s.id,
+        roomId: s.roomId,
+        scorer: {
+          id: s.scorer.id,
+          name: s.scorer.name,
+          role: s.scorer.role,
+          initials: s.scorer.initials,
+          colorHex: s.scorer.colorHex,
+          contact: s.scorer.contact,
+        },
+        layout: s.layout,
+        storage: s.storage,
+        light: s.light,
+        vibe: s.vibe,
+        feeling: s.feeling,
+        note: s.note,
+        customScores,
+        emotionalAvg: emotionalAvgOf({ ...s, customScores }),
+        functionalAvg: functionalAvgOf({ ...s, customScores }),
+        createdAt: s.createdAt.toISOString(),
+      };
+    }),
   }));
 
   const visitSummary =
@@ -263,7 +267,7 @@ propertiesRouter.get('/:id/partner-comparison', async (req, res) => {
 
   const rooms = await prisma.room.findMany({
     where: { propertyId: req.params.id },
-    include: { scores: { include: { scorer: true } } },
+    include: { scores: { include: { scorer: true, customScores: { include: { metric: true } } } } },
   });
 
   // "Partner" here means "whoever else is in the household" from the current
@@ -274,8 +278,9 @@ propertiesRouter.get('/:id/partner-comparison', async (req, res) => {
   });
 
   const roomNamesById = new Map(rooms.map((r) => [r.id, r.name]));
-  const selfScores = rooms.flatMap((r) => r.scores.filter((s) => s.scorerId === req.scorerId));
-  const partnerScores = rooms.flatMap((r) => r.scores.filter((s) => s.scorerId !== req.scorerId));
+  const withScoredCustoms = (list: typeof rooms[number]['scores']) => list.map((s) => ({ ...s, customScores: toScoredCustom(s.customScores) }));
+  const selfScores = withScoredCustoms(rooms.flatMap((r) => r.scores.filter((s) => s.scorerId === req.scorerId)));
+  const partnerScores = withScoredCustoms(rooms.flatMap((r) => r.scores.filter((s) => s.scorerId !== req.scorerId)));
 
   let partnerNote: string | null = null;
   if (partnerScores.length > 0) {

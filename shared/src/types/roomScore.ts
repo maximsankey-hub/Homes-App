@@ -1,4 +1,4 @@
-import type { RoomFeeling, ScorerRole } from '../enums.js';
+import type { MetricCategory, RoomFeeling, ScorerRole } from '../enums.js';
 import type { Media } from './media.js';
 
 export interface Scorer {
@@ -8,6 +8,13 @@ export interface Scorer {
   initials: string;
   colorHex: string;
   contact: string | null;
+}
+
+export interface CustomMetricScore {
+  metricId: string;
+  label: string;
+  category: MetricCategory;
+  value: number;
 }
 
 export interface RoomScore {
@@ -22,6 +29,7 @@ export interface RoomScore {
   note: string | null;
   emotionalAvg: number;
   functionalAvg: number;
+  customScores: CustomMetricScore[];
   createdAt: string;
 }
 

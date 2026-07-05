@@ -1,6 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { AppShell } from '../components/chrome/AppShell';
+import { ForgotPasswordScreen } from '../features/auth/ForgotPasswordScreen';
 import { LoginScreen } from '../features/auth/LoginScreen';
+import { ResetPasswordScreen } from '../features/auth/ResetPasswordScreen';
 import { SignupScreen } from '../features/auth/SignupScreen';
 import { CompareScreen } from '../features/compare/CompareScreen';
 import { HomeDetailLayout } from '../features/homeDetail/HomeDetailLayout';
@@ -24,6 +26,8 @@ import { VisitEntry } from './VisitEntry';
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginScreen /> },
   { path: '/signup', element: <SignupScreen /> },
+  { path: '/forgot-password', element: <ForgotPasswordScreen /> },
+  { path: '/reset-password', element: <ResetPasswordScreen /> },
   {
     element: <RequireAuth />,
     children: [

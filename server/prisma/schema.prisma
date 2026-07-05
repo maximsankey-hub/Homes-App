@@ -44,6 +44,11 @@ enum ScorerRole {
   PARTNER
 }
 
+enum MetricCategory {
+  EMOTIONAL
+  FUNCTIONAL
+}
+
 enum ProfileMethod {
   TAGS
   FREE_TEXT
@@ -77,10 +82,25 @@ model Household {
   inviteCode String   @unique
   createdAt  DateTime @default(now())
 
-  members    Scorer[]
-  properties Property[]
-  profile    PreferenceProfile?
-  listing    Listing?
+  members       Scorer[]
+  properties    Property[]
+  profile       PreferenceProfile?
+  listing       Listing?
+  customMetrics CustomMetric[]
+}
+
+model CustomMetric {
+  id          String         @id @default(cuid())
+  householdId String
+  household   Household      @relation(fields: [householdId], references: [id])
+  label       String
+  category    MetricCategory
+  weight      Int            @default(5)
+  createdAt   DateTime       @default(now())
+
+  scores CustomMetricScore[]
+
+  @@unique([householdId, label])
 }
 
 model Property {
@@ -176,7 +196,20 @@ model RoomScore {
   note      String?
   createdAt DateTime    @default(now())
 
+  customScores CustomMetricScore[]
+
   @@unique([roomId, scorerId])
+}
+
+model CustomMetricScore {
+  id          String       @id @default(cuid())
+  roomScoreId String
+  roomScore   RoomScore    @relation(fields: [roomScoreId], references: [id], onDelete: Cascade)
+  metricId    String
+  metric      CustomMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  value       Int
+
+  @@unique([roomScoreId, metricId])
 }
 
 model NeighborhoodScore {
@@ -248,6 +281,7 @@ model PreferenceProfile {
   weightEmotional Int           @default(5)
   weightStorage   Int           @default(5)
   weightLight     Int           @default(5)
+  weightNeighborhood Int        @default(5)
   aestheticStyle  String?
   updatedAt       DateTime      @updatedAt
 

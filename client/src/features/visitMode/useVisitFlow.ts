@@ -19,6 +19,7 @@ interface VisitFlowState {
   vibe: number;
   feeling: string;
   note: string;
+  customValues: Record<string, number>;
   pendingRoomFiles: { file: File; kind: 'PHOTO' | 'VIDEO' | 'VOICE' }[];
   lastSaved: { roomName: string; emotionalAvg: number; functionalAvg: number; feeling: string } | null;
   neighborhood: NeighborhoodDraft;
@@ -31,15 +32,22 @@ export interface ExistingRoomScore {
   vibe: number;
   feeling: string;
   note: string;
+  customValues?: Record<string, number>;
 }
 
-const NEUTRAL_SCORE: ExistingRoomScore = { layout: 5, storage: 5, light: 5, vibe: 5, feeling: 'Calm', note: '' };
+export interface CustomMetricLike {
+  id: string;
+  category: 'EMOTIONAL' | 'FUNCTIONAL';
+}
+
+const NEUTRAL_SCORE: ExistingRoomScore = { layout: 5, storage: 5, light: 5, vibe: 5, feeling: 'Calm', note: '', customValues: {} };
 const NEUTRAL_NEIGHBORHOOD: NeighborhoodDraft = { curbAppeal: 5, streetVibe: 5, feeling: 'Calm', note: '' };
 
 type Action =
   | { type: 'SELECT_ROOM'; name: string; icon: string; existingScore?: ExistingRoomScore | null }
   | { type: 'GOTO_STEP'; step: 0 | 1 | 2 | 3 | 4 }
   | { type: 'SET_FACTOR'; key: FactorKey; value: number }
+  | { type: 'SET_CUSTOM_FACTOR'; metricId: string; value: number }
   | { type: 'SET_FEELING'; feeling: string }
   | { type: 'SET_NOTE'; note: string }
   | { type: 'ADD_PENDING_FILE'; file: File; kind: 'PHOTO' | 'VIDEO' | 'VOICE' }
@@ -68,6 +76,8 @@ function reducer(state: VisitFlowState, action: Action): VisitFlowState {
       return { ...state, step: action.step };
     case 'SET_FACTOR':
       return { ...state, [action.key]: action.value };
+    case 'SET_CUSTOM_FACTOR':
+      return { ...state, customValues: { ...state.customValues, [action.metricId]: action.value } };
     case 'SET_FEELING':
       return { ...state, feeling: action.feeling };
     case 'SET_NOTE':
@@ -91,11 +101,13 @@ function reducer(state: VisitFlowState, action: Action): VisitFlowState {
   }
 }
 
-export function emotionalAvg(s: { light: number; vibe: number }) {
-  return (s.light + s.vibe) / 2;
+export function emotionalAvg(s: { light: number; vibe: number; customValues?: Record<string, number> }, customMetrics: CustomMetricLike[] = []) {
+  const values = [s.light, s.vibe, ...customMetrics.filter((m) => m.category === 'EMOTIONAL').map((m) => s.customValues?.[m.id] ?? 5)];
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
-export function functionalAvg(s: { layout: number; storage: number }) {
-  return (s.layout + s.storage) / 2;
+export function functionalAvg(s: { layout: number; storage: number; customValues?: Record<string, number> }, customMetrics: CustomMetricLike[] = []) {
+  const values = [s.layout, s.storage, ...customMetrics.filter((m) => m.category === 'FUNCTIONAL').map((m) => s.customValues?.[m.id] ?? 5)];
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 export function useVisitFlow() {

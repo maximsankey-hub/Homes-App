@@ -1,6 +1,6 @@
 import type { PatternInsight } from 'shared';
 import { prisma } from '../lib/prisma.js';
-import { round1 } from './scoreAggregation.js';
+import { emotionalAvgOf, functionalAvgOf, round1, toScoredCustom } from './scoreAggregation.js';
 
 const FACTOR_LABELS: Record<'layout' | 'storage' | 'light' | 'vibe', string> = {
   light: 'Natural light',
@@ -12,7 +12,7 @@ const FACTOR_LABELS: Record<'layout' | 'storage' | 'light' | 'vibe', string> = {
 export async function getPreferencePatterns(scorerId: string): Promise<PatternInsight[]> {
   const scores = await prisma.roomScore.findMany({
     where: { scorerId },
-    include: { room: true },
+    include: { room: true, customScores: { include: { metric: true } } },
   });
 
   if (scores.length === 0) return [];
@@ -47,8 +47,8 @@ export async function getPreferencePatterns(scorerId: string): Promise<PatternIn
     barValues,
   });
 
-  const emotionalAvg = scores.reduce((sum, s) => sum + (s.light + s.vibe) / 2, 0) / scores.length;
-  const functionalAvg = scores.reduce((sum, s) => sum + (s.layout + s.storage) / 2, 0) / scores.length;
+  const emotionalAvg = scores.reduce((sum, s) => sum + emotionalAvgOf({ ...s, customScores: toScoredCustom(s.customScores) }), 0) / scores.length;
+  const functionalAvg = scores.reduce((sum, s) => sum + functionalAvgOf({ ...s, customScores: toScoredCustom(s.customScores) }), 0) / scores.length;
   const gap = round1(emotionalAvg - functionalAvg);
 
   if (Math.abs(gap) >= 1) {

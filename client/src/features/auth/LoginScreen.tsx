@@ -61,7 +61,12 @@ export function LoginScreen() {
           <button className="btn btnp btnf" disabled={!canSubmit || isPending} onClick={submit}>
             {isPending ? 'Logging in…' : 'Log in'}
           </button>
-          <div style={{ textAlign: 'center', marginTop: 14, fontSize: 13, color: 'var(--text-secondary)' }}>
+          <div style={{ textAlign: 'center', marginTop: 10, fontSize: 13 }}>
+            <a href="/forgot-password" onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }}>
+              Forgot password?
+            </a>
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 10, fontSize: 13, color: 'var(--text-secondary)' }}>
             New here?{' '}
             <a href="/signup" onClick={(e) => { e.preventDefault(); navigate('/signup'); }}>
               Create an account

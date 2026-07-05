@@ -27,6 +27,7 @@ export function OnboardingWizard() {
   const [weightEmotional, setWeightEmotional] = useState(5);
   const [weightStorage, setWeightStorage] = useState(5);
   const [weightLight, setWeightLight] = useState(5);
+  const [weightNeighborhood, setWeightNeighborhood] = useState(5);
 
   useEffect(() => {
     if (initialized || !profile) return;
@@ -40,6 +41,7 @@ export function OnboardingWizard() {
     setWeightEmotional(profile.weightEmotional);
     setWeightStorage(profile.weightStorage);
     setWeightLight(profile.weightLight);
+    setWeightNeighborhood(profile.weightNeighborhood);
     setInitialized(true);
   }, [profile, initialized]);
 
@@ -80,6 +82,7 @@ export function OnboardingWizard() {
         weightEmotional,
         weightStorage,
         weightLight,
+        weightNeighborhood,
       },
       { onSuccess: () => navigate('/buy/homes') },
     );
@@ -297,6 +300,7 @@ export function OnboardingWizard() {
                 { label: 'Emotional fit', value: weightEmotional, setter: setWeightEmotional },
                 { label: 'Storage', value: weightStorage, setter: setWeightStorage },
                 { label: 'Natural light', value: weightLight, setter: setWeightLight },
+                { label: 'Neighborhood appeal', value: weightNeighborhood, setter: setWeightNeighborhood },
               ]
             ).map(({ label, value, setter }) => (
               <div className="fr" key={label}>

@@ -1,4 +1,4 @@
-import type { ProfileMethod, TagSource } from '../enums.js';
+import type { MetricCategory, ProfileMethod, TagSource } from '../enums.js';
 
 export interface PreferenceTag {
   id: string;
@@ -13,8 +13,16 @@ export interface PreferenceProfile {
   weightEmotional: number;
   weightStorage: number;
   weightLight: number;
+  weightNeighborhood: number;
   aestheticStyle: string | null;
   tags: PreferenceTag[];
+}
+
+export interface CustomMetric {
+  id: string;
+  label: string;
+  category: MetricCategory;
+  weight: number;
 }
 
 export interface PatternInsight {

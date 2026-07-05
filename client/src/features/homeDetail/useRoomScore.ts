@@ -9,6 +9,7 @@ export interface SaveRoomScoreInput {
   vibe: number;
   feeling: string;
   note: string;
+  customScores: { metricId: string; value: number }[];
 }
 
 export function useUpdateRoomScore(propertyId: string) {
