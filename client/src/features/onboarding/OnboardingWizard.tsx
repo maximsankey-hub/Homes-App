@@ -24,6 +24,9 @@ export function OnboardingWizard() {
   const [describeMapped, setDescribeMapped] = useState<string[]>([]);
   const [swipeIndex, setSwipeIndex] = useState(0);
   const [likedStyle, setLikedStyle] = useState<string | null>(null);
+  const [weightEmotional, setWeightEmotional] = useState(5);
+  const [weightStorage, setWeightStorage] = useState(5);
+  const [weightLight, setWeightLight] = useState(5);
 
   useEffect(() => {
     if (initialized || !profile) return;
@@ -34,6 +37,9 @@ export function OnboardingWizard() {
       setDescribeText(profile.freeText ?? '');
       setLikedStyle(profile.aestheticStyle ?? null);
     }
+    setWeightEmotional(profile.weightEmotional);
+    setWeightStorage(profile.weightStorage);
+    setWeightLight(profile.weightLight);
     setInitialized(true);
   }, [profile, initialized]);
 
@@ -71,6 +77,9 @@ export function OnboardingWizard() {
         freeText: describeText || undefined,
         aestheticStyle: likedStyle ?? undefined,
         tags: allTags,
+        weightEmotional,
+        weightStorage,
+        weightLight,
       },
       { onSuccess: () => navigate('/buy/homes') },
     );
@@ -280,6 +289,30 @@ export function OnboardingWizard() {
               </span>
             ))}
             {likedStyle && <span className="badge bg">{likedStyle}</span>}
+          </div>
+          <div className="card" style={{ textAlign: 'left', marginBottom: 16 }}>
+            <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 10 }}>Score weighting</p>
+            {(
+              [
+                { label: 'Emotional fit', value: weightEmotional, setter: setWeightEmotional },
+                { label: 'Storage', value: weightStorage, setter: setWeightStorage },
+                { label: 'Natural light', value: weightLight, setter: setWeightLight },
+              ]
+            ).map(({ label, value, setter }) => (
+              <div className="fr" key={label}>
+                <span className="frl">{label}</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={value}
+                  style={{ flex: 1 }}
+                  onChange={(e) => setter(Number(e.target.value))}
+                />
+                <span className="frv">{value}</span>
+              </div>
+            ))}
           </div>
           <button className="btn btnp btnf" disabled={updateProfile.isPending} onClick={finish}>
             {updateProfile.isPending ? 'Saving…' : 'Start exploring homes'}

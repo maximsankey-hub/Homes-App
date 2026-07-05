@@ -76,6 +76,13 @@ export function VisitModeFlow() {
                 </div>
               ))}
             </div>
+            <input
+              type="text"
+              placeholder="Or type your own room name..."
+              value={ROOM_OPTIONS.some((r) => r.name === state.roomName) ? '' : state.roomName}
+              onChange={(e) => dispatch({ type: 'SELECT_ROOM', name: e.target.value, icon: 'ti-home' })}
+              style={{ marginTop: 8 }}
+            />
             <div className="div" />
             <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Quick capture</p>
             <CaptureButtons onCapture={handleQuickCapture} />
@@ -133,7 +140,14 @@ export function VisitModeFlow() {
               value={state.note}
               onChange={(e) => dispatch({ type: 'SET_NOTE', note: e.target.value })}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
+            <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 7 }}>Capture this room</p>
+            <CaptureButtons onCapture={(file, kind) => dispatch({ type: 'ADD_PENDING_FILE', file, kind })} />
+            {state.pendingRoomFiles.length > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', margin: '8px 0' }}>
+                {state.pendingRoomFiles.length} item{state.pendingRoomFiles.length > 1 ? 's' : ''} ready to save with this room.
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button className="btn btns" onClick={() => dispatch({ type: 'GOTO_STEP', step: 0 })}>
                 <Icon name="ti-arrow-left" size={13} /> Room
               </button>

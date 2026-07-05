@@ -5,11 +5,11 @@ A running backlog of features and fixes. Pick items off this list to build next;
 ## Your requested items
 
 - [x] **Full-screen photo viewer** — clicking a media thumbnail (Visit tab, Overview) should open it in a large lightbox/overlay instead of the small grid tile. Also affects untagged media thumbnails.
-- [ ] **Editable score weighting during profile update** — the onboarding wizard ("Update profile" button) doesn't touch the weighting sliders at all right now; only the standalone Profile screen does. Fold weighting into the update flow.
+- [x] **Editable score weighting during profile update** — the onboarding wizard ("Update profile" button) doesn't touch the weighting sliders at all right now; only the standalone Profile screen does. Fold weighting into the update flow.
 - [ ] **More onboarding questions** — expand beyond the current fixed 8 preference tags; add more depth to the "what matters most" and free-text steps.
 - [ ] **Room-specific aesthetic photos** — the onboarding swipe step only asks about kitchen style (4 emoji placeholders). Add swipe decks for bedrooms, bathrooms, backyards, etc., ideally with real photos instead of emoji.
-- [ ] **Custom room names in Visit mode** — right now room choice is a fixed list (Kitchen, Living room, Primary bed, Backyard, Garage, Office). Add a "type your own" option, plus more presets: Basement, Bathroom, Secondary Bedroom.
-- [ ] **Photo capture on the scoring screen** — Visit mode's step 1 (the 4 sliders + quick-thoughts note) has no capture buttons; only the room-picker step and the reflection step do. Add capture there too.
+- [x] **Custom room names in Visit mode** — right now room choice is a fixed list (Kitchen, Living room, Primary bed, Backyard, Garage, Office). Add a "type your own" option, plus more presets: Basement, Bathroom, Secondary Bedroom.
+- [x] **Photo capture on the scoring screen** — Visit mode's step 1 (the 4 sliders + quick-thoughts note) has no capture buttons; only the room-picker step and the reflection step do. Add capture there too.
 - [ ] **Multi-user accounts + authentication** — biggest item on this list. See "Accounts & Auth" section below for what this actually involves.
 
 ## Bugs worth fixing
@@ -27,6 +27,19 @@ Real multi-user support touches a lot of the app:
 - Each user gets their own properties/profile/listing instead of the current single-household model
 - "Invite a partner" becomes a real invite — the partner logs in, joins your household/property, and scores rooms as themselves
 - Decide: fully separate households, or a shared "household" concept multiple people belong to?
+
+## Newly requested items
+
+- [ ] **Add renovation ideas from the Visit page** — currently reno ideas can only be added elsewhere; add the ability to create one directly while on the main Visit page. Two entry points: (1) while scoring a specific room, add a reno idea pre-tagged to that room, or (2) add a general reno idea with no room tag and assign it to a room afterward. Both paths should feel natural, not bolted on.
+  - **Cost estimation on the add-reno-idea form** — when creating a reno idea, let the user choose between:
+    1. AI-estimated cost range — user types a short free-text description, AI returns an estimated cost range. For now, stub this with dummy/mock data; wire up the real Claude API call later (same pattern as the existing "AI insights" mock-to-real swap-in below).
+    2. Manual cost entry — user types in their own expected cost directly.
+- [ ] **Auto-fill property details from an address (Zillow)** — when adding/editing a property, let the user enter just the address and pull in list price, sq ft, bed/bath count, and year built automatically instead of typing each field by hand. Real MLS data is gated behind broker/MLS-board sponsorship (RESO Web API via MLS Grid, or Zillow's Bridge Interactive feed) — no free public tier exists for either. Realistic options for this app:
+  - **RentCast API** — free tier (~50 requests/month); returns sqft/beds/baths/year built plus an estimated value. Best starting point.
+  - **County assessor / property tax open data portals** — genuinely free, authoritative for sqft/year built/bed-bath count (public record). No list price, since that's private MLS data — would still need manual entry for price. Coverage/format varies by county.
+  - **Unofficial scraper APIs (RapidAPI "Zillow"/"Redfin" listings)** — free tiers exist but scrape rather than use an official feed, violate ToS, and can break without notice. Fine for a quick prototype, not for anything long-term.
+  - **Paid property-data APIs (ATTOM, Estated, HouseCanary)** — more robust, but full access costs money.
+  - Likely approach: RentCast/county data for structural facts, manual entry for list price. Flag as a research spike before implementation.
 
 ## Other feature ideas worth considering
 
