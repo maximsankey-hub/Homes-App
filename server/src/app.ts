@@ -15,6 +15,7 @@ import { householdRouter } from './routes/household.js';
 import { customMetricsRouter } from './routes/customMetrics.js';
 import { requireAuth, requireHousehold } from './middleware/auth.js';
 import { clientDistDir } from './lib/paths.js';
+import { prisma } from './lib/prisma.js';
 
 export const app = express();
 
@@ -23,6 +24,18 @@ app.use(express.json());
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
+});
+
+// Touches the DB so scheduled keep-alive pings actually count as Supabase activity
+// (Supabase free-tier projects auto-pause after 7 days with no API/DB activity).
+app.get('/api/health/db', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DB health check failed:', err);
+    res.status(503).json({ ok: false });
+  }
 });
 
 app.use('/api', requireAuth);
