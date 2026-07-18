@@ -1,10 +1,17 @@
 import type { MetricCategory, RoomScore } from '@prisma/client';
 
+// Baseline factors (layout/storage/light/vibe, curbAppeal/streetVibe) aren't backed by a
+// CustomMetric, so they get this implicit weight — it matches CustomMetric's own default
+// weight, so a household that hasn't customized any weights sees the same numbers as a
+// plain unweighted mean.
+const BASELINE_WEIGHT = 5;
+
 export interface ScoredCustomValue {
   metricId: string;
   value: number;
   category: MetricCategory;
   label: string;
+  weight: number;
 }
 
 export interface ScoredRoom {
@@ -15,22 +22,37 @@ export interface ScoredRoom {
   customScores?: ScoredCustomValue[];
 }
 
+function weightedMean(parts: { value: number; weight: number }[]): number {
+  const totalWeight = parts.reduce((sum, p) => sum + p.weight, 0);
+  return parts.reduce((sum, p) => sum + p.value * p.weight, 0) / totalWeight;
+}
+
 export function emotionalAvgOf(r: ScoredRoom): number {
-  const values = [r.light, r.vibe, ...(r.customScores ?? []).filter((c) => c.category === 'EMOTIONAL').map((c) => c.value)];
-  return values.reduce((sum, v) => sum + v, 0) / values.length;
+  const parts = [
+    { value: r.light, weight: BASELINE_WEIGHT },
+    { value: r.vibe, weight: BASELINE_WEIGHT },
+    ...(r.customScores ?? []).filter((c) => c.category === 'EMOTIONAL').map((c) => ({ value: c.value, weight: c.weight })),
+  ];
+  return weightedMean(parts);
 }
 
 export function functionalAvgOf(r: ScoredRoom): number {
-  const values = [r.layout, r.storage, ...(r.customScores ?? []).filter((c) => c.category === 'FUNCTIONAL').map((c) => c.value)];
-  return values.reduce((sum, v) => sum + v, 0) / values.length;
+  const parts = [
+    { value: r.layout, weight: BASELINE_WEIGHT },
+    { value: r.storage, weight: BASELINE_WEIGHT },
+    ...(r.customScores ?? []).filter((c) => c.category === 'FUNCTIONAL').map((c) => ({ value: c.value, weight: c.weight })),
+  ];
+  return weightedMean(parts);
 }
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-export function toScoredCustom(raw: { metricId: string; value: number; metric: { category: MetricCategory; label: string } }[]): ScoredCustomValue[] {
-  return raw.map((c) => ({ metricId: c.metricId, value: c.value, category: c.metric.category, label: c.metric.label }));
+export function toScoredCustom(
+  raw: { metricId: string; value: number; metric: { category: MetricCategory; label: string; weight: number } }[],
+): ScoredCustomValue[] {
+  return raw.map((c) => ({ metricId: c.metricId, value: c.value, category: c.metric.category, label: c.metric.label, weight: c.metric.weight }));
 }
 
 export interface PropertyAggregate {
@@ -49,8 +71,12 @@ export interface NeighborhoodScoreLike {
 
 type AggregatableScore = RoomScore & { customScores?: ScoredCustomValue[] };
 
-export function aggregateSelfScores(scores: AggregatableScore[], neighborhood?: NeighborhoodScoreLike | null): PropertyAggregate {
-  if (scores.length === 0 && !neighborhood) {
+export function aggregateSelfScores(
+  scores: AggregatableScore[],
+  neighborhood?: NeighborhoodScoreLike | null,
+  propertyMetrics: ScoredCustomValue[] = [],
+): PropertyAggregate {
+  if (scores.length === 0 && !neighborhood && propertyMetrics.length === 0) {
     return {
       score: null,
       scoreColor: '#888780',
@@ -70,9 +96,22 @@ export function aggregateSelfScores(scores: AggregatableScore[], neighborhood?: 
     functionalValues.push(neighborhood.curbAppeal);
   }
 
-  const emotionalAvg = round1(emotionalValues.reduce((sum, v) => sum + v, 0) / emotionalValues.length);
-  const functionalAvg = round1(functionalValues.reduce((sum, v) => sum + v, 0) / functionalValues.length);
-  const score = round1((emotionalAvg + functionalAvg) / 2);
+  // Property-level priority metrics aren't tied to any one room, so they're folded in as a
+  // single pseudo-room: one weighted sub-average per category, alongside each room's own average.
+  const emotionalPropertyMetrics = propertyMetrics.filter((m) => m.category === 'EMOTIONAL');
+  const functionalPropertyMetrics = propertyMetrics.filter((m) => m.category === 'FUNCTIONAL');
+  if (emotionalPropertyMetrics.length > 0) {
+    emotionalValues.push(weightedMean(emotionalPropertyMetrics.map((m) => ({ value: m.value, weight: m.weight }))));
+  }
+  if (functionalPropertyMetrics.length > 0) {
+    functionalValues.push(weightedMean(functionalPropertyMetrics.map((m) => ({ value: m.value, weight: m.weight }))));
+  }
+
+  // Rooms and neighborhood always populate both arrays, but a household that's only scored
+  // property-level priorities in one category (before visiting any rooms) can leave the other empty.
+  const emotionalAvg = emotionalValues.length > 0 ? round1(emotionalValues.reduce((sum, v) => sum + v, 0) / emotionalValues.length) : null;
+  const functionalAvg = functionalValues.length > 0 ? round1(functionalValues.reduce((sum, v) => sum + v, 0) / functionalValues.length) : null;
+  const score = emotionalAvg !== null && functionalAvg !== null ? round1((emotionalAvg + functionalAvg) / 2) : emotionalAvg ?? functionalAvg;
 
   const factorBreakdown: { label: string; value: number }[] = [];
   if (scores.length > 0) {
@@ -105,14 +144,19 @@ export function aggregateSelfScores(scores: AggregatableScore[], neighborhood?: 
       { label: 'Street vibe', value: neighborhood.streetVibe },
     );
   }
+  for (const m of propertyMetrics) {
+    factorBreakdown.push({ label: m.label, value: m.value });
+  }
+
+  const strongFit = score !== null && score >= 8;
 
   return {
     score,
-    scoreColor: score >= 8 ? '#1D9E75' : '#534AB7',
+    scoreColor: strongFit ? '#1D9E75' : '#534AB7',
     emotionalAvg,
     functionalAvg,
     factorBreakdown,
-    fitLabel: score >= 8 ? 'Strong lifestyle fit' : 'Moderate lifestyle fit',
+    fitLabel: strongFit ? 'Strong lifestyle fit' : 'Moderate lifestyle fit',
   };
 }
 

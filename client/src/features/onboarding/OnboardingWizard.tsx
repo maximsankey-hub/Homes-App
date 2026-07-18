@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
-import { useAiMap, useProfile, useUpdateProfile } from '../profile/useProfile';
+import { useAiMap, useProfile, useUpdateProfile, type UpdateProfileInput } from '../profile/useProfile';
+import { PriorityGroupCard } from '../profile/PriorityGroupCard';
 import { PRESET_TAGS, SWIPE_STYLES } from './onboardingData';
+import { PRIORITY_GROUPS } from './priorityQuestions';
 
 type Method = 'BOTH' | 'TAGS' | 'FREE_TEXT';
 
@@ -29,6 +31,14 @@ export function OnboardingWizard() {
   const [weightLight, setWeightLight] = useState(5);
   const [weightNeighborhood, setWeightNeighborhood] = useState(5);
 
+  const [priorityStage, setPriorityStage] = useState<'intro' | number | null>(null);
+  const [showContinuePrompt, setShowContinuePrompt] = useState(false);
+  const [introHasPets, setIntroHasPets] = useState(false);
+  const [introBudgetVsDream, setIntroBudgetVsDream] = useState(5);
+  const [introMoveInVsReno, setIntroMoveInVsReno] = useState(5);
+
+  const activeGroups = useMemo(() => PRIORITY_GROUPS.filter((g) => g.key !== 'pets' || introHasPets), [introHasPets]);
+
   useEffect(() => {
     if (initialized || !profile) return;
     const hasSavedProfile = profile.tags.length > 0 || !!profile.freeText || !!profile.aestheticStyle;
@@ -42,6 +52,9 @@ export function OnboardingWizard() {
     setWeightStorage(profile.weightStorage);
     setWeightLight(profile.weightLight);
     setWeightNeighborhood(profile.weightNeighborhood);
+    setIntroHasPets(profile.hasPets);
+    setIntroBudgetVsDream(profile.priorityBudgetVsDream);
+    setIntroMoveInVsReno(profile.priorityMoveInReadyVsReno);
     setInitialized(true);
   }, [profile, initialized]);
 
@@ -67,7 +80,7 @@ export function OnboardingWizard() {
     setSwipeIndex((i) => i + 1);
   };
 
-  const finish = () => {
+  const saveBaseProfile = (extra: Partial<UpdateProfileInput>, onSuccess: () => void) => {
     const aiMappedLabels = [...new Set([...extraMapped, ...describeMapped])].filter((label) => !selectedTags.has(label));
     const allTags = [
       ...[...selectedTags].map((label) => ({ label, source: 'MANUAL' as const })),
@@ -83,9 +96,31 @@ export function OnboardingWizard() {
         weightStorage,
         weightLight,
         weightNeighborhood,
+        ...extra,
       },
-      { onSuccess: () => navigate('/buy/homes') },
+      { onSuccess },
     );
+  };
+
+  const finish = () => saveBaseProfile({}, () => navigate('/buy/homes'));
+
+  const goDeeper = () => saveBaseProfile({}, () => setPriorityStage('intro'));
+
+  const saveIntroAndContinue = () => {
+    saveBaseProfile(
+      { hasPets: introHasPets, priorityBudgetVsDream: introBudgetVsDream, priorityMoveInReadyVsReno: introMoveInVsReno },
+      () => (activeGroups.length > 0 ? setPriorityStage(0) : navigate('/buy/homes')),
+    );
+  };
+
+  const advanceGroup = () => {
+    const nextIndex = typeof priorityStage === 'number' ? priorityStage + 1 : 0;
+    if (nextIndex >= activeGroups.length) {
+      navigate('/buy/homes');
+    } else {
+      setPriorityStage(nextIndex);
+      setShowContinuePrompt(false);
+    }
   };
 
   const front = SWIPE_STYLES[swipeIndex % SWIPE_STYLES.length];
@@ -93,11 +128,13 @@ export function OnboardingWizard() {
 
   return (
     <div className="pad">
-      <div className="obp">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className={`obd${i < step ? ' d' : i === step ? ' c' : ''}`} />
-        ))}
-      </div>
+      {priorityStage === null && (
+        <div className="obp">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className={`obd${i < step ? ' d' : i === step ? ' c' : ''}`} />
+          ))}
+        </div>
+      )}
 
       {step === 0 && (
         <div>
@@ -278,7 +315,7 @@ export function OnboardingWizard() {
         </div>
       )}
 
-      {step === 4 && (
+      {step === 4 && priorityStage === null && (
         <div style={{ textAlign: 'center', padding: '14px 0' }}>
           <Icon name="ti-check" size={40} color="#1D9E75" />
           <div style={{ fontSize: 18, fontWeight: 500, marginTop: 8, marginBottom: 6 }}>Profile ready</div>
@@ -318,8 +355,96 @@ export function OnboardingWizard() {
               </div>
             ))}
           </div>
-          <button className="btn btnp btnf" disabled={updateProfile.isPending} onClick={finish}>
+          <button className="btn btnp btnf" style={{ marginBottom: 8 }} disabled={updateProfile.isPending} onClick={finish}>
             {updateProfile.isPending ? 'Saving…' : 'Start exploring homes'}
+          </button>
+          <button className="btn btns btnf" disabled={updateProfile.isPending} onClick={goDeeper}>
+            <Icon name="ti-sparkles" size={13} /> Go deeper on priorities
+          </button>
+        </div>
+      )}
+
+      {step === 4 && priorityStage === 'intro' && (
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 5 }}>About your search</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            A few quick ones before we get into specifics.
+          </div>
+          <div className="card" style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Do you have a pet whose needs matter in this search?</p>
+            <div style={{ display: 'flex', gap: 5 }}>
+              <button className={`tag${introHasPets ? ' sb' : ''}`} onClick={() => setIntroHasPets(true)}>
+                Yes
+              </button>
+              <button className={`tag${!introHasPets ? ' sb' : ''}`} onClick={() => setIntroHasPets(false)}>
+                No
+              </button>
+            </div>
+          </div>
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div className="fr">
+              <span className="frl" style={{ flex: 'none', width: 150 }}>
+                Financial flexibility vs. dream house
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={introBudgetVsDream}
+                style={{ flex: 1 }}
+                onChange={(e) => setIntroBudgetVsDream(Number(e.target.value))}
+              />
+              <span className="frv">{introBudgetVsDream}</span>
+            </div>
+          </div>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="fr">
+              <span className="frl" style={{ flex: 'none', width: 150 }}>
+                Move-in ready vs. open to renovations
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={introMoveInVsReno}
+                style={{ flex: 1 }}
+                onChange={(e) => setIntroMoveInVsReno(Number(e.target.value))}
+              />
+              <span className="frv">{introMoveInVsReno}</span>
+            </div>
+          </div>
+          <button className="btn btnp btnf" disabled={updateProfile.isPending} onClick={saveIntroAndContinue}>
+            Continue <Icon name="ti-arrow-right" size={14} />
+          </button>
+        </div>
+      )}
+
+      {step === 4 && typeof priorityStage === 'number' && !showContinuePrompt && (
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+            Topic {priorityStage + 1} of {activeGroups.length}
+          </div>
+          <PriorityGroupCard group={activeGroups[priorityStage]} />
+          <button className="btn btnp btnf" onClick={() => setShowContinuePrompt(true)}>
+            Continue <Icon name="ti-arrow-right" size={14} />
+          </button>
+        </div>
+      )}
+
+      {step === 4 && typeof priorityStage === 'number' && showContinuePrompt && (
+        <div style={{ textAlign: 'center', padding: '14px 0' }}>
+          <Icon name="ti-sparkles" size={32} color="var(--text-accent)" />
+          <div style={{ fontSize: 15, fontWeight: 500, marginTop: 10, marginBottom: 6 }}>Want to keep going?</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
+            You can always finish the rest later from your profile.
+          </div>
+          <button className="btn btnp btnf" style={{ marginBottom: 8 }} onClick={advanceGroup}>
+            Keep going
+          </button>
+          <button className="btn btns btnf" onClick={() => navigate('/buy/homes')}>
+            I'll finish later
           </button>
         </div>
       )}

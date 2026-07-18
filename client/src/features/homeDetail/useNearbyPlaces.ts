@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NearbyPlace } from 'shared';
 import { api } from '../../lib/apiClient';
 
@@ -13,5 +13,13 @@ export function useNearbyPlaces(propertyId: string | undefined, category: string
       return api.get<NearbyPlace[]>(`/properties/${propertyId}/nearby${qs ? `?${qs}` : ''}`);
     },
     enabled: !!propertyId,
+  });
+}
+
+export function useRefreshNearbyPlaces(propertyId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.get<NearbyPlace[]>(`/properties/${propertyId}/nearby?refresh=true`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['properties', propertyId, 'nearby'] }),
   });
 }

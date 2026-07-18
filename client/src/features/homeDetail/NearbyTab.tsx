@@ -2,7 +2,8 @@ import { useParams } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { useUiStore } from '../../store/uiStore';
 import { useProperty } from '../homes/useProperties';
-import { useNearbyPlaces } from './useNearbyPlaces';
+import { useNearbyPlaces, useRefreshNearbyPlaces } from './useNearbyPlaces';
+import { PropertyMap } from './PropertyMap';
 
 const CATEGORIES = [
   { key: 'all', label: 'All' },
@@ -18,16 +19,32 @@ export function NearbyTab() {
   const { data: property } = useProperty(propertyId);
   const { nearbySearch, nearbyCategory, setNearbySearch, setNearbyCategory } = useUiStore();
   const { data: places, isLoading } = useNearbyPlaces(propertyId, nearbyCategory, nearbySearch);
+  const refreshPlaces = useRefreshNearbyPlaces(propertyId);
 
   if (!property) return <div>Loading…</div>;
 
   return (
     <div>
-      <div className="mph">
-        <div style={{ position: 'absolute', top: '35%', left: '43%' }}>
-          <Icon name="ti-map-pin" size={24} color="#E24B4A" />
+      {property.lat !== null && property.lng !== null ? (
+        <PropertyMap lat={property.lat} lng={property.lng} places={places ?? []} />
+      ) : (
+        <div className="mph">
+          <div style={{ position: 'absolute', top: '35%', left: '43%' }}>
+            <Icon name="ti-map-pin" size={24} color="#E24B4A" />
+          </div>
+          <div style={{ position: 'absolute', bottom: 8, left: 8, right: 8, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>
+            Edit this property's address to place it on a real map
+          </div>
         </div>
-      </div>
+      )}
+      <button
+        className="btn btns"
+        style={{ marginBottom: 8 }}
+        disabled={refreshPlaces.isPending}
+        onClick={() => refreshPlaces.mutate()}
+      >
+        <Icon name="ti-refresh" size={13} /> {refreshPlaces.isPending ? 'Refreshing…' : 'Refresh nearby places'}
+      </button>
       <div className="ns">
         <input
           type="text"

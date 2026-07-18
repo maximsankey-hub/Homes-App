@@ -38,3 +38,13 @@ export function useUpdateNeighborhoodScore(propertyId: string) {
     },
   });
 }
+
+export function useUpdatePropertyMetricScores(propertyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scores: { metricId: string; value: number }[]) => api.post(`/properties/${propertyId}/metric-scores`, { scores }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.property(propertyId) });
+    },
+  });
+}

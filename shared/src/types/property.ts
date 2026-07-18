@@ -1,6 +1,6 @@
 import type { PropertyStatus, IdeaType, PlaceCategory } from '../enums.js';
 import type { AIInsight, Badge } from './common.js';
-import type { Room, FactorBreakdown, NeighborhoodScore } from './roomScore.js';
+import type { Room, FactorBreakdown, NeighborhoodScore, CustomMetricScore } from './roomScore.js';
 import type { Media } from './media.js';
 
 export interface PropertySummary {
@@ -26,12 +26,15 @@ export interface PropertyMetric {
 
 export interface PropertyDetail extends PropertySummary {
   yearBuilt: number | null;
+  lat: number | null;
+  lng: number | null;
   fitLabel: string;
   visitSummary: string;
   metrics: PropertyMetric[];
   aiInsights: AIInsight[];
   rooms: Room[];
   neighborhoodScore: NeighborhoodScore | null;
+  metricScores: CustomMetricScore[];
   untaggedMedia: Media[];
   factorBreakdown: FactorBreakdown[];
   emotionalAvg: number | null;
@@ -67,6 +70,8 @@ export interface NearbyPlace {
   icon: string;
   iconColor: string;
   iconBg: string;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface CompareLifestyleDimension {

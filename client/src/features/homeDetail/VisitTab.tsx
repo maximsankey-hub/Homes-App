@@ -8,7 +8,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useProperty } from '../homes/useProperties';
 import { useHousehold } from '../household/useHousehold';
 import { useCustomMetrics } from '../profile/useCustomMetrics';
-import { useUpdateNeighborhoodScore, useUpdateRoomScore } from './useRoomScore';
+import { useUpdateNeighborhoodScore, useUpdatePropertyMetricScores, useUpdateRoomScore } from './useRoomScore';
 
 interface ScoreDraft {
   layout: number;
@@ -35,10 +35,13 @@ export function VisitTab() {
   const openModal = useUiStore((s) => s.openModal);
   const updateScore = useUpdateRoomScore(propertyId);
   const updateNeighborhood = useUpdateNeighborhoodScore(propertyId);
+  const updatePropertyMetrics = useUpdatePropertyMetricScores(propertyId);
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ScoreDraft | null>(null);
   const [neighborhoodExpanded, setNeighborhoodExpanded] = useState(false);
   const [neighborhoodDraft, setNeighborhoodDraft] = useState<NeighborhoodDraft | null>(null);
+  const [prioritiesExpanded, setPrioritiesExpanded] = useState(false);
+  const [prioritiesDraft, setPrioritiesDraft] = useState<Record<string, number> | null>(null);
 
   if (isLoading || !property) return <div>Loading…</div>;
 
@@ -98,6 +101,27 @@ export function VisitTab() {
     updateNeighborhood.mutate(
       { ...neighborhoodDraft, feeling: FEELING_ENUM[neighborhoodDraft.feeling] ?? 'CALM' },
       { onSuccess: () => setNeighborhoodExpanded(false) },
+    );
+  };
+
+  const propertyMetrics = customMetrics.filter((m) => m.scope === 'PROPERTY');
+
+  const togglePriorities = () => {
+    if (prioritiesExpanded) {
+      setPrioritiesExpanded(false);
+      setPrioritiesDraft(null);
+      return;
+    }
+    setPrioritiesExpanded(true);
+    const existing = Object.fromEntries(property.metricScores.map((s) => [s.metricId, s.value]));
+    setPrioritiesDraft(Object.fromEntries(propertyMetrics.map((m) => [m.id, existing[m.id] ?? 5])));
+  };
+
+  const savePrioritiesDraft = () => {
+    if (!prioritiesDraft) return;
+    updatePropertyMetrics.mutate(
+      Object.entries(prioritiesDraft).map(([metricId, value]) => ({ metricId, value })),
+      { onSuccess: () => setPrioritiesExpanded(false) },
     );
   };
 
@@ -302,6 +326,55 @@ export function VisitTab() {
                 />
                 <button className="btn btnp btnf" disabled={updateNeighborhood.isPending} onClick={saveNeighborhoodDraft}>
                   {updateNeighborhood.isPending ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="div" />
+
+      <div className="slbl">Priorities</div>
+      <div className="card" style={{ padding: '10px 12px' }}>
+        {propertyMetrics.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>
+            <Icon name="ti-target" size={26} />
+            <div style={{ marginTop: 6 }}>No priorities set yet — add some from your profile.</div>
+          </div>
+        ) : (
+          <>
+            <div className="rrow" style={{ cursor: 'pointer' }} onClick={togglePriorities}>
+              <div className="ri">
+                <Icon name="ti-target" size={17} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>What matters to us</div>
+                <span className="badge bb" style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
+                  {property.metricScores.length} of {propertyMetrics.length} scored
+                </span>
+              </div>
+            </div>
+
+            {prioritiesExpanded && prioritiesDraft && (
+              <div style={{ padding: '4px 8px 10px 40px' }} onClick={(e) => e.stopPropagation()}>
+                {propertyMetrics.map((metric) => (
+                  <div className="fr" key={metric.id}>
+                    <span className="frl">{metric.label}</span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={prioritiesDraft[metric.id] ?? 5}
+                      style={{ flex: 1 }}
+                      onChange={(e) => setPrioritiesDraft({ ...prioritiesDraft, [metric.id]: Number(e.target.value) })}
+                    />
+                    <span className="frv">{prioritiesDraft[metric.id] ?? 5}</span>
+                  </div>
+                ))}
+                <button className="btn btnp btnf" disabled={updatePropertyMetrics.isPending} onClick={savePrioritiesDraft}>
+                  {updatePropertyMetrics.isPending ? 'Saving…' : 'Save changes'}
                 </button>
               </div>
             )}

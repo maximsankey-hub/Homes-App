@@ -14,7 +14,8 @@ export function useCustomMetrics() {
 export function useCreateCustomMetric() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { label: string; category: 'EMOTIONAL' | 'FUNCTIONAL' }) => api.post<CustomMetric>('/custom-metrics', input),
+    mutationFn: (input: { label: string; category: 'EMOTIONAL' | 'FUNCTIONAL'; scope?: 'ROOM' | 'PROPERTY'; weight?: number }) =>
+      api.post<CustomMetric>('/custom-metrics', input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: customMetricsKey }),
   });
 }

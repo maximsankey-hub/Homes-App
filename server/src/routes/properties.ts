@@ -5,6 +5,7 @@ import { formatK } from '../lib/format.js';
 import { aggregateSelfScores, emotionalAvgOf, functionalAvgOf, secondaryInsights, toScoredCustom } from '../services/scoreAggregation.js';
 import { getPropertyOverviewInsights } from '../services/aiInsights.js';
 import { buildPartnerComparison } from '../services/partnerComparison.js';
+import { geocodeAddress } from '../services/googleMaps.js';
 
 export const propertiesRouter = Router();
 
@@ -28,6 +29,7 @@ propertiesRouter.get('/', async (req, res) => {
       rooms: { include: { scores: { include: { customScores: { include: { metric: true } } } } } },
       media: true,
       neighborhoodScores: true,
+      propertyMetricScores: { include: { metric: true } },
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -35,7 +37,8 @@ propertiesRouter.get('/', async (req, res) => {
   const summaries: PropertySummary[] = properties.map((p) => {
     const allScores = p.rooms.flatMap((r) => r.scores).map((s) => ({ ...s, customScores: toScoredCustom(s.customScores) }));
     const neighborhood = p.neighborhoodScores.find((n) => n.scorerId === req.scorerId) ?? null;
-    const agg = aggregateSelfScores(allScores, neighborhood);
+    const myMetricScores = toScoredCustom(p.propertyMetricScores.filter((m) => m.scorerId === req.scorerId));
+    const agg = aggregateSelfScores(allScores, neighborhood, myMetricScores);
     return {
       id: p.id,
       address: p.address,
@@ -63,6 +66,9 @@ propertiesRouter.post('/', async (req, res) => {
     return;
   }
 
+  // Best-effort — a missing/failed geocode shouldn't block adding the property.
+  const geocoded = await geocodeAddress(`${address}, ${city ?? ''}, ${state ?? ''}`).catch(() => null);
+
   const property = await prisma.property.create({
     data: {
       householdId: req.householdId!,
@@ -74,6 +80,8 @@ propertiesRouter.post('/', async (req, res) => {
       beds: beds ?? 0,
       baths: baths ?? 0,
       yearBuilt: yearBuilt ?? null,
+      lat: geocoded?.lat ?? null,
+      lng: geocoded?.lng ?? null,
     },
   });
 
@@ -89,6 +97,12 @@ propertiesRouter.put('/:id', async (req, res) => {
 
   const { address, city, state, listingPrice, sqft, beds, baths, yearBuilt } = req.body ?? {};
 
+  const nextAddress = address ?? owned.address;
+  const nextCity = city ?? owned.city;
+  const nextState = state ?? owned.state;
+  const addressChanged = nextAddress !== owned.address || nextCity !== owned.city || nextState !== owned.state;
+  const geocoded = addressChanged ? await geocodeAddress(`${nextAddress}, ${nextCity}, ${nextState}`).catch(() => null) : null;
+
   const property = await prisma.property.update({
     where: { id: req.params.id },
     data: {
@@ -100,6 +114,7 @@ propertiesRouter.put('/:id', async (req, res) => {
       ...(beds !== undefined && { beds }),
       ...(baths !== undefined && { baths }),
       ...(yearBuilt !== undefined && { yearBuilt }),
+      ...(addressChanged && { lat: geocoded?.lat ?? null, lng: geocoded?.lng ?? null, placesFetchedAt: null }),
     },
   });
 
@@ -124,6 +139,7 @@ propertiesRouter.get('/:id', async (req, res) => {
       media: true,
       nearbyPlaces: true,
       neighborhoodScores: { include: { scorer: true } },
+      propertyMetricScores: { include: { metric: true } },
     },
   });
 
@@ -134,7 +150,8 @@ propertiesRouter.get('/:id', async (req, res) => {
 
   const myNeighborhoodScore = property.neighborhoodScores.find((n) => n.scorerId === req.scorerId) ?? null;
   const allScores = property.rooms.flatMap((r) => r.scores).map((s) => ({ ...s, customScores: toScoredCustom(s.customScores) }));
-  const agg = aggregateSelfScores(allScores, myNeighborhoodScore);
+  const myMetricScores = toScoredCustom(property.propertyMetricScores.filter((m) => m.scorerId === req.scorerId));
+  const agg = aggregateSelfScores(allScores, myNeighborhoodScore, myMetricScores);
 
   const untaggedMedia = property.media.filter((m) => m.roomId === null);
   const mediaCount = property.media.length;
@@ -196,6 +213,8 @@ propertiesRouter.get('/:id', async (req, res) => {
     beds: property.beds,
     baths: property.baths,
     yearBuilt: property.yearBuilt,
+    lat: property.lat,
+    lng: property.lng,
     status: property.status,
     lastVisitedAt: property.lastVisitedAt ? property.lastVisitedAt.toISOString() : null,
     score: agg.score,
@@ -230,6 +249,7 @@ propertiesRouter.get('/:id', async (req, res) => {
           createdAt: myNeighborhoodScore.createdAt.toISOString(),
         }
       : null,
+    metricScores: myMetricScores.map(({ metricId, label, category, value }) => ({ metricId, label, category, value })),
     untaggedMedia: untaggedMedia.map((m) => ({
       id: m.id,
       propertyId: m.propertyId,

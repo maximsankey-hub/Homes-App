@@ -19,6 +19,9 @@ export interface UpdateProfileInput {
   weightLight?: number;
   weightNeighborhood?: number;
   aestheticStyle?: string;
+  hasPets?: boolean;
+  priorityBudgetVsDream?: number;
+  priorityMoveInReadyVsReno?: number;
   tags?: { label: string; source: 'MANUAL' | 'AI_MAPPED' }[];
 }
 

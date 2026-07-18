@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { MetricCategory } from '@prisma/client';
+import type { MetricCategory, MetricScope } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 
 export const customMetricsRouter = Router();
@@ -13,14 +13,26 @@ customMetricsRouter.get('/', async (req, res) => {
 });
 
 customMetricsRouter.post('/', async (req, res) => {
-  const { label, category } = req.body ?? {};
+  const { label, category, scope, weight } = req.body ?? {};
   if (!label || (category !== 'EMOTIONAL' && category !== 'FUNCTIONAL')) {
     res.status(400).json({ error: 'label and category (EMOTIONAL or FUNCTIONAL) are required' });
     return;
   }
+  if (scope !== undefined && scope !== 'ROOM' && scope !== 'PROPERTY') {
+    res.status(400).json({ error: 'scope must be ROOM or PROPERTY' });
+    return;
+  }
 
-  const metric = await prisma.customMetric.create({
-    data: { householdId: req.householdId!, label, category: category as MetricCategory },
+  const metric = await prisma.customMetric.upsert({
+    where: { householdId_label: { householdId: req.householdId!, label } },
+    update: { category: category as MetricCategory, scope: (scope as MetricScope) ?? undefined, weight: typeof weight === 'number' ? weight : undefined },
+    create: {
+      householdId: req.householdId!,
+      label,
+      category: category as MetricCategory,
+      scope: (scope as MetricScope) ?? 'ROOM',
+      weight: typeof weight === 'number' ? weight : undefined,
+    },
   });
   res.status(201).json(metric);
 });

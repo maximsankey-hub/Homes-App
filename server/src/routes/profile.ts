@@ -24,7 +24,17 @@ async function getOrCreateProfile(householdId: string) {
   const existing = await prisma.preferenceProfile.findFirst({ where: { householdId }, include: { tags: true } });
   if (existing) return existing;
   return prisma.preferenceProfile.create({
-    data: { householdId, method: 'BOTH', weightEmotional: 5, weightStorage: 5, weightLight: 5, weightNeighborhood: 5 },
+    data: {
+      householdId,
+      method: 'BOTH',
+      weightEmotional: 5,
+      weightStorage: 5,
+      weightLight: 5,
+      weightNeighborhood: 5,
+      hasPets: false,
+      priorityBudgetVsDream: 5,
+      priorityMoveInReadyVsReno: 5,
+    },
     include: { tags: true },
   });
 }
@@ -37,7 +47,19 @@ profileRouter.get('/', async (req, res) => {
 
 profileRouter.put('/', async (req, res) => {
   const profile = await getOrCreateProfile(req.householdId!);
-  const { method, freeText, weightEmotional, weightStorage, weightLight, weightNeighborhood, aestheticStyle, tags } = req.body ?? {};
+  const {
+    method,
+    freeText,
+    weightEmotional,
+    weightStorage,
+    weightLight,
+    weightNeighborhood,
+    aestheticStyle,
+    hasPets,
+    priorityBudgetVsDream,
+    priorityMoveInReadyVsReno,
+    tags,
+  } = req.body ?? {};
 
   const updated = await prisma.preferenceProfile.update({
     where: { id: profile.id },
@@ -49,6 +71,9 @@ profileRouter.put('/', async (req, res) => {
       weightLight: weightLight ?? profile.weightLight,
       weightNeighborhood: weightNeighborhood ?? profile.weightNeighborhood,
       aestheticStyle: aestheticStyle ?? profile.aestheticStyle,
+      hasPets: typeof hasPets === 'boolean' ? hasPets : profile.hasPets,
+      priorityBudgetVsDream: priorityBudgetVsDream ?? profile.priorityBudgetVsDream,
+      priorityMoveInReadyVsReno: priorityMoveInReadyVsReno ?? profile.priorityMoveInReadyVsReno,
       ...(Array.isArray(tags)
         ? {
             tags: {

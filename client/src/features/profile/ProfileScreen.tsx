@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { useProfile, useUpdateProfile } from './useProfile';
 import { useCreateCustomMetric, useCustomMetrics, useDeleteCustomMetric, useUpdateCustomMetricWeight } from './useCustomMetrics';
+import { PriorityGroupCard } from './PriorityGroupCard';
+import { PRIORITY_GROUPS } from '../onboarding/priorityQuestions';
 
 export function ProfileScreen() {
   const { data: profile, isLoading } = useProfile();
@@ -14,14 +16,18 @@ export function ProfileScreen() {
   const navigate = useNavigate();
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState<'EMOTIONAL' | 'FUNCTIONAL'>('EMOTIONAL');
+  const [newScope, setNewScope] = useState<'ROOM' | 'PROPERTY'>('PROPERTY');
+  const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
 
   if (isLoading || !profile) return <div className="pad">Loading…</div>;
 
   const handleAddMetric = () => {
     const label = newLabel.trim();
     if (!label) return;
-    createMetric.mutate({ label, category: newCategory }, { onSuccess: () => setNewLabel('') });
+    createMetric.mutate({ label, category: newCategory, scope: newScope }, { onSuccess: () => setNewLabel('') });
   };
+
+  const visibleGroups = PRIORITY_GROUPS.filter((g) => g.key !== 'pets' || profile.hasPets);
 
   return (
     <div className="pad">
@@ -125,6 +131,69 @@ export function ProfileScreen() {
 
       <div className="div" />
 
+      <div className="slbl">Your priorities</div>
+      <div className="card" style={{ marginBottom: 10 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Do you have a pet whose needs matter in this search?</p>
+        <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
+          <button className={`tag${profile.hasPets ? ' sb' : ''}`} onClick={() => updateProfile.mutate({ hasPets: true })}>
+            Yes
+          </button>
+          <button className={`tag${!profile.hasPets ? ' sb' : ''}`} onClick={() => updateProfile.mutate({ hasPets: false })}>
+            No
+          </button>
+        </div>
+        <div className="fr">
+          <span className="frl">Financial flexibility vs. dream house</span>
+          <input
+            type="range"
+            min={1}
+            max={10}
+            step={1}
+            value={profile.priorityBudgetVsDream}
+            style={{ flex: 1 }}
+            onChange={(e) => updateProfile.mutate({ priorityBudgetVsDream: Number(e.target.value) })}
+          />
+          <span className="frv">{profile.priorityBudgetVsDream}</span>
+        </div>
+        <div className="fr">
+          <span className="frl">Move-in ready vs. open to renovations</span>
+          <input
+            type="range"
+            min={1}
+            max={10}
+            step={1}
+            value={profile.priorityMoveInReadyVsReno}
+            style={{ flex: 1 }}
+            onChange={(e) => updateProfile.mutate({ priorityMoveInReadyVsReno: Number(e.target.value) })}
+          />
+          <span className="frv">{profile.priorityMoveInReadyVsReno}</span>
+        </div>
+      </div>
+
+      {visibleGroups.map((group) => {
+        const open = openGroupKey === group.key;
+        return (
+          <div key={group.key} style={{ marginBottom: 6 }}>
+            <div
+              className="rrow"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setOpenGroupKey(open ? null : group.key)}
+            >
+              <div className="ri">
+                <Icon name={group.icon} size={17} />
+              </div>
+              <div style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{group.title}</div>
+              <div style={{ transform: open ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s' }}>
+                <Icon name="ti-chevron-right" size={14} />
+              </div>
+            </div>
+            {open && <PriorityGroupCard group={group} />}
+          </div>
+        );
+      })}
+
+      <div className="div" />
+
       <div className="card">
         <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 10 }}>Custom scoring metrics</p>
         {(!customMetrics || customMetrics.length === 0) && (
@@ -158,10 +227,17 @@ export function ProfileScreen() {
           onChange={(e) => setNewLabel(e.target.value)}
           style={{ marginBottom: 8 }}
         />
-        <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
           {(['EMOTIONAL', 'FUNCTIONAL'] as const).map((cat) => (
             <button key={cat} className={`tag${newCategory === cat ? ' sb' : ''}`} onClick={() => setNewCategory(cat)}>
               {cat === 'EMOTIONAL' ? 'Emotional' : 'Functional'}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+          {(['PROPERTY', 'ROOM'] as const).map((sc) => (
+            <button key={sc} className={`tag${newScope === sc ? ' sb' : ''}`} onClick={() => setNewScope(sc)}>
+              {sc === 'PROPERTY' ? 'Whole house' : 'Per room'}
             </button>
           ))}
         </div>

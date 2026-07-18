@@ -77,6 +77,11 @@ enum CompDiffType {
   WITHIN
 }
 
+enum MetricScope {
+  ROOM
+  PROPERTY
+}
+
 model Household {
   id         String   @id @default(cuid())
   inviteCode String   @unique
@@ -95,10 +100,12 @@ model CustomMetric {
   household   Household      @relation(fields: [householdId], references: [id])
   label       String
   category    MetricCategory
+  scope       MetricScope    @default(ROOM)
   weight      Int            @default(5)
   createdAt   DateTime       @default(now())
 
-  scores CustomMetricScore[]
+  scores         CustomMetricScore[]
+  propertyScores PropertyMetricScore[]
 
   @@unique([householdId, label])
 }
@@ -118,6 +125,9 @@ model Property {
   yearBuilt     Int?
   status        PropertyStatus @default(NOT_VISITED)
   lastVisitedAt DateTime?
+  lat           Float?
+  lng           Float?
+  placesFetchedAt DateTime?
 
   walkScore    Int?
   transitScore Int?
@@ -137,6 +147,7 @@ model Property {
   nearbyPlaces       NearbyPlace[]
   scorerNotes        ScorerNote[]
   neighborhoodScores NeighborhoodScore[]
+  propertyMetricScores PropertyMetricScore[]
 }
 
 model ScorerNote {
@@ -180,6 +191,7 @@ model Scorer {
   scores             RoomScore[]
   notes              ScorerNote[]
   neighborhoodScores NeighborhoodScore[]
+  propertyMetricScores PropertyMetricScore[]
 }
 
 model RoomScore {
@@ -227,6 +239,20 @@ model NeighborhoodScore {
   @@unique([propertyId, scorerId])
 }
 
+model PropertyMetricScore {
+  id         String       @id @default(cuid())
+  propertyId String
+  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  scorerId   String
+  scorer     Scorer       @relation(fields: [scorerId], references: [id])
+  metricId   String
+  metric     CustomMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  value      Int
+  createdAt  DateTime     @default(now())
+
+  @@unique([propertyId, scorerId, metricId])
+}
+
 model Media {
   id               String          @id @default(cuid())
   propertyId       String
@@ -270,6 +296,8 @@ model NearbyPlace {
   icon         String
   iconColor    String
   iconBg       String
+  lat          Float?
+  lng          Float?
 }
 
 model PreferenceProfile {
@@ -283,6 +311,9 @@ model PreferenceProfile {
   weightLight     Int           @default(5)
   weightNeighborhood Int        @default(5)
   aestheticStyle  String?
+  hasPets                    Boolean       @default(false)
+  priorityBudgetVsDream      Int           @default(5)
+  priorityMoveInReadyVsReno  Int           @default(5)
   updatedAt       DateTime      @updatedAt
 
   tags PreferenceTag[]

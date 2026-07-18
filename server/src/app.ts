@@ -11,6 +11,7 @@ import { nearbyRouter } from './routes/nearby.js';
 import { compareRouter } from './routes/compare.js';
 import { listingRouter } from './routes/listing.js';
 import { neighborhoodScoreRouter } from './routes/neighborhoodScore.js';
+import { propertyMetricScoreRouter } from './routes/propertyMetricScores.js';
 import { householdRouter } from './routes/household.js';
 import { customMetricsRouter } from './routes/customMetrics.js';
 import { requireAuth, requireHousehold } from './middleware/auth.js';
@@ -54,6 +55,7 @@ app.use('/api/profile', profileRouter);
 app.use('/api/scorers', scorersRouter);
 app.use('/api', renovationsRouter);
 app.use('/api', neighborhoodScoreRouter);
+app.use('/api', propertyMetricScoreRouter);
 app.use('/api/listing', listingRouter);
 app.use('/api/custom-metrics', customMetricsRouter);
 
