@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
+import { PolaritySlider } from '../../components/common/PolaritySlider';
 import { useAiMap, useProfile, useUpdateProfile, type UpdateProfileInput } from '../profile/useProfile';
 import { PriorityGroupCard } from '../profile/PriorityGroupCard';
 import { PRESET_TAGS, SWIPE_STYLES } from './onboardingData';
@@ -382,38 +383,20 @@ export function OnboardingWizard() {
             </div>
           </div>
           <div className="card" style={{ marginBottom: 12 }}>
-            <div className="fr">
-              <span className="frl" style={{ flex: 'none', width: 150 }}>
-                Financial flexibility vs. dream house
-              </span>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                step={1}
-                value={introBudgetVsDream}
-                style={{ flex: 1 }}
-                onChange={(e) => setIntroBudgetVsDream(Number(e.target.value))}
-              />
-              <span className="frv">{introBudgetVsDream}</span>
-            </div>
+            <PolaritySlider
+              leftLabel="Financial flexibility"
+              rightLabel="Dream house"
+              value={introBudgetVsDream}
+              onChange={setIntroBudgetVsDream}
+            />
           </div>
           <div className="card" style={{ marginBottom: 14 }}>
-            <div className="fr">
-              <span className="frl" style={{ flex: 'none', width: 150 }}>
-                Move-in ready vs. open to renovations
-              </span>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                step={1}
-                value={introMoveInVsReno}
-                style={{ flex: 1 }}
-                onChange={(e) => setIntroMoveInVsReno(Number(e.target.value))}
-              />
-              <span className="frv">{introMoveInVsReno}</span>
-            </div>
+            <PolaritySlider
+              leftLabel="Move-in ready"
+              rightLabel="Open to renovations"
+              value={introMoveInVsReno}
+              onChange={setIntroMoveInVsReno}
+            />
           </div>
           <button className="btn btnp btnf" disabled={updateProfile.isPending} onClick={saveIntroAndContinue}>
             Continue <Icon name="ti-arrow-right" size={14} />

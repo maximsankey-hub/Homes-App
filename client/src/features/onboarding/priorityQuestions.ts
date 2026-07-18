@@ -64,6 +64,8 @@ export const PRIORITY_GROUPS: PriorityGroup[] = [
       { key: 'main-floor-guest-room', label: 'Guest bedroom on the main floor for extended stays', category: 'FUNCTIONAL' },
       { key: 'second-guest-room', label: 'Second guest bedroom on a separate floor for privacy', category: 'FUNCTIONAL' },
       { key: 'hosting-space', label: 'Space to comfortably host friends', category: 'EMOTIONAL' },
+      { key: 'dinner-party', label: 'Ability to host a large dinner party', category: 'FUNCTIONAL' },
+      { key: 'outdoor-games', label: 'Space for outdoor games (bags, bocce)', category: 'FUNCTIONAL' },
     ],
   },
   {

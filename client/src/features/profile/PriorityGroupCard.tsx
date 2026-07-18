@@ -1,6 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/common/Icon';
 import type { PriorityGroup, PriorityMetricItem } from '../onboarding/priorityQuestions';
 import { useCreateCustomMetric, useCustomMetrics, useDeleteCustomMetric, useUpdateCustomMetricWeight } from './useCustomMetrics';
+
+const WEIGHT_COMMIT_DELAY_MS = 350;
 
 interface PriorityGroupCardProps {
   group: PriorityGroup;
@@ -11,16 +14,44 @@ export function PriorityGroupCard({ group }: PriorityGroupCardProps) {
   const createMetric = useCreateCustomMetric();
   const updateWeight = useUpdateCustomMetricWeight();
   const deleteMetric = useDeleteCustomMetric();
+  const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, number>>({});
+  const commitTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const timers = commitTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   const findMetric = (item: PriorityMetricItem) => customMetrics?.find((m) => m.label === item.label);
 
+  const setPending = (key: string, pending: boolean) => {
+    setPendingKeys((prev) => {
+      const next = new Set(prev);
+      if (pending) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  };
+
   const handleToggle = (item: PriorityMetricItem) => {
     const existing = findMetric(item);
+    setPending(item.key, true);
     if (existing) {
-      deleteMetric.mutate(existing.id);
+      deleteMetric.mutate(existing.id, { onSettled: () => setPending(item.key, false) });
     } else {
-      createMetric.mutate({ label: item.label, category: item.category, scope: 'PROPERTY' });
+      createMetric.mutate({ label: item.label, category: item.category, scope: 'PROPERTY' }, { onSettled: () => setPending(item.key, false) });
     }
+  };
+
+  const handleWeightChange = (item: PriorityMetricItem, metricId: string, weight: number) => {
+    setWeightDrafts((prev) => ({ ...prev, [item.key]: weight }));
+    clearTimeout(commitTimers.current[item.key]);
+    commitTimers.current[item.key] = setTimeout(() => {
+      updateWeight.mutate({ id: metricId, weight });
+    }, WEIGHT_COMMIT_DELAY_MS);
   };
 
   return (
@@ -31,6 +62,7 @@ export function PriorityGroupCard({ group }: PriorityGroupCardProps) {
       {group.items.map((item) => {
         const existing = findMetric(item);
         const on = !!existing;
+        const weight = weightDrafts[item.key] ?? existing?.weight ?? 5;
         return (
           <div key={item.key} style={{ padding: '6px 0', borderTop: '0.5px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -38,7 +70,7 @@ export function PriorityGroupCard({ group }: PriorityGroupCardProps) {
               <button
                 className={`tag${on ? ' sb' : ''}`}
                 style={{ flexShrink: 0 }}
-                disabled={createMetric.isPending || deleteMetric.isPending}
+                disabled={pendingKeys.has(item.key)}
                 onClick={() => handleToggle(item)}
               >
                 {on ? 'Matters to us' : 'Add'}
@@ -52,11 +84,11 @@ export function PriorityGroupCard({ group }: PriorityGroupCardProps) {
                   min={1}
                   max={10}
                   step={1}
-                  value={existing.weight}
+                  value={weight}
                   style={{ flex: 1 }}
-                  onChange={(e) => updateWeight.mutate({ id: existing.id, weight: Number(e.target.value) })}
+                  onChange={(e) => handleWeightChange(item, existing.id, Number(e.target.value))}
                 />
-                <span className="frv">{existing.weight}</span>
+                <span className="frv">{weight}</span>
               </div>
             )}
           </div>

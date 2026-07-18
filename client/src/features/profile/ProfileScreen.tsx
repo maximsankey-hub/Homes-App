@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
-import { useProfile, useUpdateProfile } from './useProfile';
+import { PolaritySlider } from '../../components/common/PolaritySlider';
+import { useProfile, useUpdateProfile, type UpdateProfileInput } from './useProfile';
 import { useCreateCustomMetric, useCustomMetrics, useDeleteCustomMetric, useUpdateCustomMetricWeight } from './useCustomMetrics';
 import { PriorityGroupCard } from './PriorityGroupCard';
 import { PRIORITY_GROUPS } from '../onboarding/priorityQuestions';
+
+const COMMIT_DELAY_MS = 350;
 
 export function ProfileScreen() {
   const { data: profile, isLoading } = useProfile();
@@ -18,8 +21,32 @@ export function ProfileScreen() {
   const [newCategory, setNewCategory] = useState<'EMOTIONAL' | 'FUNCTIONAL'>('EMOTIONAL');
   const [newScope, setNewScope] = useState<'ROOM' | 'PROPERTY'>('PROPERTY');
   const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, number>>({});
+  const commitTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const timers = commitTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   if (isLoading || !profile) return <div className="pad">Loading…</div>;
+
+  const debounceCommit = (key: string, fn: () => void) => {
+    clearTimeout(commitTimers.current[key]);
+    commitTimers.current[key] = setTimeout(fn, COMMIT_DELAY_MS);
+  };
+
+  const handleProfileWeightChange = (key: keyof UpdateProfileInput, value: number) => {
+    setWeightDrafts((prev) => ({ ...prev, [key]: value }));
+    debounceCommit(key, () => updateProfile.mutate({ [key]: value }));
+  };
+
+  const handleMetricWeightChange = (metricId: string, value: number) => {
+    setWeightDrafts((prev) => ({ ...prev, [metricId]: value }));
+    debounceCommit(metricId, () => updateWeight.mutate({ id: metricId, weight: value }));
+  };
 
   const handleAddMetric = () => {
     const label = newLabel.trim();
@@ -97,36 +124,42 @@ export function ProfileScreen() {
             { key: 'weightLight' as const, label: 'Natural light' },
             { key: 'weightNeighborhood' as const, label: 'Neighborhood appeal' },
           ]
-        ).map(({ key, label }) => (
-          <div className="fr" key={key}>
-            <span className="frl">{label}</span>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              value={profile[key]}
-              style={{ flex: 1 }}
-              onChange={(e) => updateProfile.mutate({ [key]: Number(e.target.value) })}
-            />
-            <span className="frv">{profile[key]}</span>
-          </div>
-        ))}
-        {customMetrics?.map((metric) => (
-          <div className="fr" key={metric.id}>
-            <span className="frl">{metric.label}</span>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              value={metric.weight}
-              style={{ flex: 1 }}
-              onChange={(e) => updateWeight.mutate({ id: metric.id, weight: Number(e.target.value) })}
-            />
-            <span className="frv">{metric.weight}</span>
-          </div>
-        ))}
+        ).map(({ key, label }) => {
+          const value = weightDrafts[key] ?? profile[key];
+          return (
+            <div className="fr" key={key}>
+              <span className="frl">{label}</span>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={value}
+                style={{ flex: 1 }}
+                onChange={(e) => handleProfileWeightChange(key, Number(e.target.value))}
+              />
+              <span className="frv">{value}</span>
+            </div>
+          );
+        })}
+        {customMetrics?.map((metric) => {
+          const value = weightDrafts[metric.id] ?? metric.weight;
+          return (
+            <div className="fr" key={metric.id}>
+              <span className="frl">{metric.label}</span>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={value}
+                style={{ flex: 1 }}
+                onChange={(e) => handleMetricWeightChange(metric.id, Number(e.target.value))}
+              />
+              <span className="frv">{value}</span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="div" />
@@ -142,31 +175,21 @@ export function ProfileScreen() {
             No
           </button>
         </div>
-        <div className="fr">
-          <span className="frl">Financial flexibility vs. dream house</span>
-          <input
-            type="range"
-            min={1}
-            max={10}
-            step={1}
-            value={profile.priorityBudgetVsDream}
-            style={{ flex: 1 }}
-            onChange={(e) => updateProfile.mutate({ priorityBudgetVsDream: Number(e.target.value) })}
+        <div style={{ marginBottom: 12 }}>
+          <PolaritySlider
+            leftLabel="Financial flexibility"
+            rightLabel="Dream house"
+            value={weightDrafts.priorityBudgetVsDream ?? profile.priorityBudgetVsDream}
+            onChange={(v) => handleProfileWeightChange('priorityBudgetVsDream', v)}
           />
-          <span className="frv">{profile.priorityBudgetVsDream}</span>
         </div>
-        <div className="fr">
-          <span className="frl">Move-in ready vs. open to renovations</span>
-          <input
-            type="range"
-            min={1}
-            max={10}
-            step={1}
-            value={profile.priorityMoveInReadyVsReno}
-            style={{ flex: 1 }}
-            onChange={(e) => updateProfile.mutate({ priorityMoveInReadyVsReno: Number(e.target.value) })}
+        <div>
+          <PolaritySlider
+            leftLabel="Move-in ready"
+            rightLabel="Open to renovations"
+            value={weightDrafts.priorityMoveInReadyVsReno ?? profile.priorityMoveInReadyVsReno}
+            onChange={(v) => handleProfileWeightChange('priorityMoveInReadyVsReno', v)}
           />
-          <span className="frv">{profile.priorityMoveInReadyVsReno}</span>
         </div>
       </div>
 

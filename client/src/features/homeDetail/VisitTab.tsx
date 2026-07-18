@@ -73,7 +73,7 @@ export function VisitTab() {
   const saveDraft = (roomId: string) => {
     if (!draft) return;
     const { customValues, ...rest } = draft;
-    const customScores = customMetrics.map((m) => ({ metricId: m.id, value: customValues[m.id] ?? 5 }));
+    const customScores = customMetrics.filter((m) => m.scope === 'ROOM').map((m) => ({ metricId: m.id, value: customValues[m.id] ?? 5 }));
     updateScore.mutate(
       { roomId, ...rest, feeling: FEELING_ENUM[draft.feeling] ?? 'CALM', customScores },
       { onSuccess: () => setExpandedRoomId(null) },
@@ -200,7 +200,7 @@ export function VisitTab() {
                       <span className="frv">{draft[key]}</span>
                     </div>
                   ))}
-                  {customMetrics.map((metric) => (
+                  {customMetrics.filter((m) => m.scope === 'ROOM').map((metric) => (
                     <div className="fr" key={metric.id}>
                       <span className="frl">{metric.label}</span>
                       <input
