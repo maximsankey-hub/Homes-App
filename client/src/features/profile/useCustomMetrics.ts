@@ -24,12 +24,24 @@ async function optimisticUpdate(
 export function useCreateCustomMetric() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { label: string; category: 'EMOTIONAL' | 'FUNCTIONAL'; scope?: 'ROOM' | 'PROPERTY'; weight?: number }) =>
-      api.post<CustomMetric>('/custom-metrics', input),
+    mutationFn: (input: {
+      label: string;
+      category: 'EMOTIONAL' | 'FUNCTIONAL';
+      scope?: 'ROOM' | 'PROPERTY';
+      targetRoomName?: string | null;
+      weight?: number;
+    }) => api.post<CustomMetric>('/custom-metrics', input),
     onMutate: (input) =>
       optimisticUpdate(queryClient, (prev) => [
         ...prev,
-        { id: `optimistic-${input.label}`, label: input.label, category: input.category, scope: input.scope ?? 'ROOM', weight: input.weight ?? 5 },
+        {
+          id: `optimistic-${input.label}`,
+          label: input.label,
+          category: input.category,
+          scope: input.scope ?? 'ROOM',
+          targetRoomName: input.targetRoomName ?? null,
+          weight: input.weight ?? 5,
+        },
       ]),
     onError: (_err, _input, context) => {
       if (context?.previous) queryClient.setQueryData(customMetricsKey, context.previous);

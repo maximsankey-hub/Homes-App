@@ -16,6 +16,9 @@ export interface PreferenceProfile {
   weightNeighborhood: number;
   aestheticStyle: string | null;
   hasPets: boolean;
+  petTypes: string[];
+  householdComposition: string | null;
+  householdCompositionOther: string | null;
   priorityBudgetVsDream: number;
   priorityMoveInReadyVsReno: number;
   tags: PreferenceTag[];
@@ -26,6 +29,7 @@ export interface CustomMetric {
   label: string;
   category: MetricCategory;
   scope: MetricScope;
+  targetRoomName: string | null;
   weight: number;
 }
 

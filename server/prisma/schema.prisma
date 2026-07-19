@@ -101,6 +101,7 @@ model CustomMetric {
   label       String
   category    MetricCategory
   scope       MetricScope    @default(ROOM)
+  targetRoomName String?
   weight      Int            @default(5)
   createdAt   DateTime       @default(now())
 
@@ -280,6 +281,7 @@ model RenovationIdea {
   feasibility    Int
   need           String?
   constraintNote String?
+  sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
 
   media Media[]
@@ -312,6 +314,9 @@ model PreferenceProfile {
   weightNeighborhood Int        @default(5)
   aestheticStyle  String?
   hasPets                    Boolean       @default(false)
+  petTypes                   String[]      @default([])
+  householdComposition       String?
+  householdCompositionOther  String?
   priorityBudgetVsDream      Int           @default(5)
   priorityMoveInReadyVsReno  Int           @default(5)
   updatedAt       DateTime      @updatedAt

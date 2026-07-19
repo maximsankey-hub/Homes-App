@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { PolaritySlider } from '../../components/common/PolaritySlider';
 import { useAiMap, useProfile, useUpdateProfile, type UpdateProfileInput } from '../profile/useProfile';
+import { AboutYourSearchFields } from '../profile/AboutYourSearchFields';
 import { PriorityGroupCard } from '../profile/PriorityGroupCard';
 import { PRESET_TAGS, SWIPE_STYLES } from './onboardingData';
-import { PRIORITY_GROUPS } from './priorityQuestions';
+import { PET_TYPE_OPTIONS, PRIORITY_GROUPS } from './priorityQuestions';
 
 type Method = 'BOTH' | 'TAGS' | 'FREE_TEXT';
 
@@ -35,6 +36,10 @@ export function OnboardingWizard() {
   const [priorityStage, setPriorityStage] = useState<'intro' | number | null>(null);
   const [showContinuePrompt, setShowContinuePrompt] = useState(false);
   const [introHasPets, setIntroHasPets] = useState(false);
+  const [introPetTypes, setIntroPetTypes] = useState<string[]>([]);
+  const [introPetTypeOther, setIntroPetTypeOther] = useState('');
+  const [introHouseholdComposition, setIntroHouseholdComposition] = useState<string | null>(null);
+  const [introHouseholdCompositionOther, setIntroHouseholdCompositionOther] = useState('');
   const [introBudgetVsDream, setIntroBudgetVsDream] = useState(5);
   const [introMoveInVsReno, setIntroMoveInVsReno] = useState(5);
 
@@ -54,6 +59,10 @@ export function OnboardingWizard() {
     setWeightLight(profile.weightLight);
     setWeightNeighborhood(profile.weightNeighborhood);
     setIntroHasPets(profile.hasPets);
+    setIntroPetTypes(profile.petTypes.filter((t) => (PET_TYPE_OPTIONS as readonly string[]).includes(t)));
+    setIntroPetTypeOther(profile.petTypes.find((t) => !(PET_TYPE_OPTIONS as readonly string[]).includes(t)) ?? '');
+    setIntroHouseholdComposition(profile.householdComposition);
+    setIntroHouseholdCompositionOther(profile.householdCompositionOther ?? '');
     setIntroBudgetVsDream(profile.priorityBudgetVsDream);
     setIntroMoveInVsReno(profile.priorityMoveInReadyVsReno);
     setInitialized(true);
@@ -108,8 +117,16 @@ export function OnboardingWizard() {
   const goDeeper = () => saveBaseProfile({}, () => setPriorityStage('intro'));
 
   const saveIntroAndContinue = () => {
+    const petTypes = [...introPetTypes, ...(introPetTypeOther.trim() ? [introPetTypeOther.trim()] : [])];
     saveBaseProfile(
-      { hasPets: introHasPets, priorityBudgetVsDream: introBudgetVsDream, priorityMoveInReadyVsReno: introMoveInVsReno },
+      {
+        hasPets: introHasPets,
+        petTypes,
+        householdComposition: introHouseholdComposition ?? undefined,
+        householdCompositionOther: introHouseholdCompositionOther,
+        priorityBudgetVsDream: introBudgetVsDream,
+        priorityMoveInReadyVsReno: introMoveInVsReno,
+      },
       () => (activeGroups.length > 0 ? setPriorityStage(0) : navigate('/buy/homes')),
     );
   };
@@ -371,17 +388,18 @@ export function OnboardingWizard() {
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>
             A few quick ones before we get into specifics.
           </div>
-          <div className="card" style={{ marginBottom: 12 }}>
-            <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Do you have a pet whose needs matter in this search?</p>
-            <div style={{ display: 'flex', gap: 5 }}>
-              <button className={`tag${introHasPets ? ' sb' : ''}`} onClick={() => setIntroHasPets(true)}>
-                Yes
-              </button>
-              <button className={`tag${!introHasPets ? ' sb' : ''}`} onClick={() => setIntroHasPets(false)}>
-                No
-              </button>
-            </div>
-          </div>
+          <AboutYourSearchFields
+            hasPets={introHasPets}
+            onHasPetsChange={setIntroHasPets}
+            petTypes={introPetTypes}
+            onPetTypesChange={setIntroPetTypes}
+            petTypeOther={introPetTypeOther}
+            onPetTypeOtherChange={setIntroPetTypeOther}
+            householdComposition={introHouseholdComposition}
+            onHouseholdCompositionChange={setIntroHouseholdComposition}
+            householdCompositionOther={introHouseholdCompositionOther}
+            onHouseholdCompositionOtherChange={setIntroHouseholdCompositionOther}
+          />
           <div className="card" style={{ marginBottom: 12 }}>
             <PolaritySlider
               leftLabel="Financial flexibility"
@@ -409,7 +427,7 @@ export function OnboardingWizard() {
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
             Topic {priorityStage + 1} of {activeGroups.length}
           </div>
-          <PriorityGroupCard group={activeGroups[priorityStage]} />
+          <PriorityGroupCard group={activeGroups[priorityStage]} petTypes={introPetTypes} />
           <button className="btn btnp btnf" onClick={() => setShowContinuePrompt(true)}>
             Continue <Icon name="ti-arrow-right" size={14} />
           </button>

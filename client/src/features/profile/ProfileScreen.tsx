@@ -4,8 +4,9 @@ import { Icon } from '../../components/common/Icon';
 import { PolaritySlider } from '../../components/common/PolaritySlider';
 import { useProfile, useUpdateProfile, type UpdateProfileInput } from './useProfile';
 import { useCreateCustomMetric, useCustomMetrics, useDeleteCustomMetric, useUpdateCustomMetricWeight } from './useCustomMetrics';
+import { AboutYourSearchFields } from './AboutYourSearchFields';
 import { PriorityGroupCard } from './PriorityGroupCard';
-import { PRIORITY_GROUPS } from '../onboarding/priorityQuestions';
+import { PET_TYPE_OPTIONS, PRIORITY_GROUPS } from '../onboarding/priorityQuestions';
 
 const COMMIT_DELAY_MS = 350;
 
@@ -22,6 +23,7 @@ export function ProfileScreen() {
   const [newScope, setNewScope] = useState<'ROOM' | 'PROPERTY'>('PROPERTY');
   const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
   const [weightDrafts, setWeightDrafts] = useState<Record<string, number>>({});
+  const [textDrafts, setTextDrafts] = useState<Record<string, string>>({});
   const commitTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
@@ -52,6 +54,23 @@ export function ProfileScreen() {
     const label = newLabel.trim();
     if (!label) return;
     createMetric.mutate({ label, category: newCategory, scope: newScope }, { onSuccess: () => setNewLabel('') });
+  };
+
+  const presetPetTypes = profile.petTypes.filter((t) => (PET_TYPE_OPTIONS as readonly string[]).includes(t));
+  const otherPetType = profile.petTypes.find((t) => !(PET_TYPE_OPTIONS as readonly string[]).includes(t)) ?? '';
+
+  const handlePetTypesChange = (newPresets: string[]) => {
+    updateProfile.mutate({ petTypes: [...newPresets, ...(otherPetType ? [otherPetType] : [])] });
+  };
+
+  const handlePetTypeOtherChange = (value: string) => {
+    setTextDrafts((prev) => ({ ...prev, petTypeOther: value }));
+    debounceCommit('petTypeOther', () => updateProfile.mutate({ petTypes: [...presetPetTypes, ...(value.trim() ? [value.trim()] : [])] }));
+  };
+
+  const handleHouseholdCompositionOtherChange = (value: string) => {
+    setTextDrafts((prev) => ({ ...prev, householdCompositionOther: value }));
+    debounceCommit('householdCompositionOther', () => updateProfile.mutate({ householdCompositionOther: value }));
   };
 
   const visibleGroups = PRIORITY_GROUPS.filter((g) => g.key !== 'pets' || profile.hasPets);
@@ -165,16 +184,19 @@ export function ProfileScreen() {
       <div className="div" />
 
       <div className="slbl">Your priorities</div>
+      <AboutYourSearchFields
+        hasPets={profile.hasPets}
+        onHasPetsChange={(v) => updateProfile.mutate({ hasPets: v })}
+        petTypes={presetPetTypes}
+        onPetTypesChange={handlePetTypesChange}
+        petTypeOther={textDrafts.petTypeOther ?? otherPetType}
+        onPetTypeOtherChange={handlePetTypeOtherChange}
+        householdComposition={profile.householdComposition}
+        onHouseholdCompositionChange={(v) => updateProfile.mutate({ householdComposition: v })}
+        householdCompositionOther={textDrafts.householdCompositionOther ?? profile.householdCompositionOther ?? ''}
+        onHouseholdCompositionOtherChange={handleHouseholdCompositionOtherChange}
+      />
       <div className="card" style={{ marginBottom: 10 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Do you have a pet whose needs matter in this search?</p>
-        <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
-          <button className={`tag${profile.hasPets ? ' sb' : ''}`} onClick={() => updateProfile.mutate({ hasPets: true })}>
-            Yes
-          </button>
-          <button className={`tag${!profile.hasPets ? ' sb' : ''}`} onClick={() => updateProfile.mutate({ hasPets: false })}>
-            No
-          </button>
-        </div>
         <div style={{ marginBottom: 12 }}>
           <PolaritySlider
             leftLabel="Financial flexibility"
@@ -210,7 +232,7 @@ export function ProfileScreen() {
                 <Icon name="ti-chevron-right" size={14} />
               </div>
             </div>
-            {open && <PriorityGroupCard group={group} />}
+            {open && <PriorityGroupCard group={group} petTypes={presetPetTypes} />}
           </div>
         );
       })}

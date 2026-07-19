@@ -14,6 +14,7 @@ renovationsRouter.get('/properties/:id/renovations', async (req, res) => {
   const renovations = await prisma.renovationIdea.findMany({
     where: { propertyId: req.params.id },
     include: { media: true },
+    orderBy: { sortOrder: 'asc' },
   });
   res.json(renovations);
 });
@@ -31,6 +32,8 @@ renovationsRouter.post('/properties/:id/renovations', async (req, res) => {
     return;
   }
 
+  const count = await prisma.renovationIdea.count({ where: { propertyId: req.params.id } });
+
   const renovation = await prisma.renovationIdea.create({
     data: {
       propertyId: req.params.id,
@@ -42,11 +45,42 @@ renovationsRouter.post('/properties/:id/renovations', async (req, res) => {
       feasibility: feasibility ?? 50,
       need: need ?? null,
       constraintNote: constraintNote ?? null,
+      sortOrder: count,
     },
     include: { media: true },
   });
 
   res.status(201).json(renovation);
+});
+
+renovationsRouter.post('/properties/:id/renovations/reorder', async (req, res) => {
+  const owned = await prisma.property.findFirst({ where: { id: req.params.id, householdId: req.householdId } });
+  if (!owned) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
+  const { orderedIds } = req.body ?? {};
+  if (!Array.isArray(orderedIds) || orderedIds.some((id) => typeof id !== 'string')) {
+    res.status(400).json({ error: 'orderedIds must be an array of strings' });
+    return;
+  }
+
+  const owned2 = await prisma.renovationIdea.findMany({ where: { id: { in: orderedIds }, propertyId: req.params.id }, select: { id: true } });
+  const ownedIds = new Set(owned2.map((r) => r.id));
+
+  await prisma.$transaction(
+    orderedIds
+      .filter((id: string) => ownedIds.has(id))
+      .map((id: string, index: number) => prisma.renovationIdea.update({ where: { id }, data: { sortOrder: index } })),
+  );
+
+  const renovations = await prisma.renovationIdea.findMany({
+    where: { propertyId: req.params.id },
+    include: { media: true },
+    orderBy: { sortOrder: 'asc' },
+  });
+  res.json(renovations);
 });
 
 renovationsRouter.post('/renovations/estimate-cost', (req, res) => {

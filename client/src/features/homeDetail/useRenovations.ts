@@ -49,6 +49,16 @@ export function useAssignRenovationRoom(propertyId: string) {
   });
 }
 
+export function useReorderRenovations(propertyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => api.post<RenovationIdea[]>(`/properties/${propertyId}/renovations/reorder`, { orderedIds }),
+    onSuccess: (renovations) => {
+      queryClient.setQueryData(['properties', propertyId, 'renovations'], renovations);
+    },
+  });
+}
+
 export function useEstimateRenovationCost() {
   return useMutation({
     mutationFn: ({ description, type }: { description: string; type: 'COSMETIC' | 'STRUCTURAL' }) =>

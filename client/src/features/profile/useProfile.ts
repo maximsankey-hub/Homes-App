@@ -20,6 +20,9 @@ export interface UpdateProfileInput {
   weightNeighborhood?: number;
   aestheticStyle?: string;
   hasPets?: boolean;
+  petTypes?: string[];
+  householdComposition?: string;
+  householdCompositionOther?: string;
   priorityBudgetVsDream?: number;
   priorityMoveInReadyVsReno?: number;
   tags?: { label: string; source: 'MANUAL' | 'AI_MAPPED' }[];

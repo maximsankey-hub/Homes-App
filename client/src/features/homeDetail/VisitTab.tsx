@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import type { CustomMetric } from 'shared';
 import { Badge } from '../../components/common/Badge';
 import { FactorBar } from '../../components/common/FactorBar';
 import { Icon } from '../../components/common/Icon';
@@ -20,11 +21,18 @@ interface ScoreDraft {
   customValues: Record<string, number>;
 }
 
-interface NeighborhoodDraft {
+interface PropertyDraft {
   curbAppeal: number;
   streetVibe: number;
   feeling: string;
   note: string;
+  metricValues: Record<string, number>;
+}
+
+// A ROOM-scoped metric with no targetRoomName applies to every room (matches old behavior for
+// custom, non-catalog metrics); one with a targetRoomName only applies to a matching room.
+function matchesRoom(metric: CustomMetric, roomName: string): boolean {
+  return metric.scope === 'ROOM' && (!metric.targetRoomName || metric.targetRoomName.toLowerCase() === roomName.toLowerCase());
 }
 
 export function VisitTab() {
@@ -38,10 +46,8 @@ export function VisitTab() {
   const updatePropertyMetrics = useUpdatePropertyMetricScores(propertyId);
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ScoreDraft | null>(null);
-  const [neighborhoodExpanded, setNeighborhoodExpanded] = useState(false);
-  const [neighborhoodDraft, setNeighborhoodDraft] = useState<NeighborhoodDraft | null>(null);
-  const [prioritiesExpanded, setPrioritiesExpanded] = useState(false);
-  const [prioritiesDraft, setPrioritiesDraft] = useState<Record<string, number> | null>(null);
+  const [propertyExpanded, setPropertyExpanded] = useState(false);
+  const [propertyDraft, setPropertyDraft] = useState<PropertyDraft | null>(null);
 
   if (isLoading || !property) return <div>Loading…</div>;
 
@@ -70,59 +76,47 @@ export function VisitTab() {
     });
   };
 
-  const saveDraft = (roomId: string) => {
+  const saveDraft = (roomId: string, roomName: string) => {
     if (!draft) return;
     const { customValues, ...rest } = draft;
-    const customScores = customMetrics.filter((m) => m.scope === 'ROOM').map((m) => ({ metricId: m.id, value: customValues[m.id] ?? 5 }));
+    const customScores = customMetrics.filter((m) => matchesRoom(m, roomName)).map((m) => ({ metricId: m.id, value: customValues[m.id] ?? 5 }));
     updateScore.mutate(
       { roomId, ...rest, feeling: FEELING_ENUM[draft.feeling] ?? 'CALM', customScores },
       { onSuccess: () => setExpandedRoomId(null) },
     );
   };
 
-  const toggleNeighborhood = () => {
-    if (!property.neighborhoodScore) return;
-    if (neighborhoodExpanded) {
-      setNeighborhoodExpanded(false);
-      setNeighborhoodDraft(null);
+  const propertyMetrics = customMetrics.filter((m) => m.scope === 'PROPERTY');
+
+  const toggleProperty = () => {
+    if (propertyExpanded) {
+      setPropertyExpanded(false);
+      setPropertyDraft(null);
       return;
     }
-    setNeighborhoodExpanded(true);
-    setNeighborhoodDraft({
-      curbAppeal: property.neighborhoodScore.curbAppeal,
-      streetVibe: property.neighborhoodScore.streetVibe,
-      feeling: FEELING_LABEL[property.neighborhoodScore.feeling] ?? 'Calm',
-      note: property.neighborhoodScore.note ?? '',
+    setPropertyExpanded(true);
+    const existingMetricValues = Object.fromEntries(property.metricScores.map((s) => [s.metricId, s.value]));
+    setPropertyDraft({
+      curbAppeal: property.neighborhoodScore?.curbAppeal ?? 5,
+      streetVibe: property.neighborhoodScore?.streetVibe ?? 5,
+      feeling: FEELING_LABEL[property.neighborhoodScore?.feeling ?? 'CALM'] ?? 'Calm',
+      note: property.neighborhoodScore?.note ?? '',
+      metricValues: Object.fromEntries(propertyMetrics.map((m) => [m.id, existingMetricValues[m.id] ?? 5])),
     });
   };
 
-  const saveNeighborhoodDraft = () => {
-    if (!neighborhoodDraft) return;
-    updateNeighborhood.mutate(
-      { ...neighborhoodDraft, feeling: FEELING_ENUM[neighborhoodDraft.feeling] ?? 'CALM' },
-      { onSuccess: () => setNeighborhoodExpanded(false) },
-    );
-  };
-
-  const propertyMetrics = customMetrics.filter((m) => m.scope === 'PROPERTY');
-
-  const togglePriorities = () => {
-    if (prioritiesExpanded) {
-      setPrioritiesExpanded(false);
-      setPrioritiesDraft(null);
-      return;
-    }
-    setPrioritiesExpanded(true);
-    const existing = Object.fromEntries(property.metricScores.map((s) => [s.metricId, s.value]));
-    setPrioritiesDraft(Object.fromEntries(propertyMetrics.map((m) => [m.id, existing[m.id] ?? 5])));
-  };
-
-  const savePrioritiesDraft = () => {
-    if (!prioritiesDraft) return;
-    updatePropertyMetrics.mutate(
-      Object.entries(prioritiesDraft).map(([metricId, value]) => ({ metricId, value })),
-      { onSuccess: () => setPrioritiesExpanded(false) },
-    );
+  const savePropertyDraft = async () => {
+    if (!propertyDraft) return;
+    await Promise.all([
+      updateNeighborhood.mutateAsync({
+        curbAppeal: propertyDraft.curbAppeal,
+        streetVibe: propertyDraft.streetVibe,
+        feeling: FEELING_ENUM[propertyDraft.feeling] ?? 'CALM',
+        note: propertyDraft.note,
+      }),
+      updatePropertyMetrics.mutateAsync(Object.entries(propertyDraft.metricValues).map(([metricId, value]) => ({ metricId, value }))),
+    ]);
+    setPropertyExpanded(false);
   };
 
   return (
@@ -200,7 +194,7 @@ export function VisitTab() {
                       <span className="frv">{draft[key]}</span>
                     </div>
                   ))}
-                  {customMetrics.filter((m) => m.scope === 'ROOM').map((metric) => (
+                  {customMetrics.filter((m) => matchesRoom(m, room.name)).map((metric) => (
                     <div className="fr" key={metric.id}>
                       <span className="frl">{metric.label}</span>
                       <input
@@ -237,7 +231,7 @@ export function VisitTab() {
                     value={draft.note}
                     onChange={(e) => setDraft({ ...draft, note: e.target.value })}
                   />
-                  <button className="btn btnp btnf" disabled={updateScore.isPending} onClick={() => saveDraft(room.id)}>
+                  <button className="btn btnp btnf" disabled={updateScore.isPending} onClick={() => saveDraft(room.id, room.name)}>
                     {updateScore.isPending ? 'Saving…' : 'Save changes'}
                   </button>
                 </div>
@@ -249,115 +243,87 @@ export function VisitTab() {
 
       <div className="div" />
 
-      <div className="slbl">Neighborhood</div>
+      <div className="slbl">Property & Neighborhood</div>
       <div className="card" style={{ padding: '10px 12px' }}>
-        {!property.neighborhoodScore ? (
-          <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>
-            <Icon name="ti-map-pin" size={26} />
-            <div style={{ marginTop: 6 }}>Not scored yet — score it from Visit mode.</div>
+        <div className="rrow" style={{ cursor: 'pointer' }} onClick={toggleProperty}>
+          <div className="ri">
+            <Icon name="ti-map-pin" size={17} />
           </div>
-        ) : (
-          <>
-            <div className="rrow" style={{ cursor: 'pointer' }} onClick={toggleNeighborhood}>
-              <div className="ri">
-                <Icon name="ti-map-pin" size={17} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>Neighborhood feel</div>
-                <span className="badge bb" style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
-                  {FEELING_LABEL[property.neighborhoodScore.feeling]}
-                </span>
-                {property.neighborhoodScore.note && (
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{property.neighborhoodScore.note}</div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div className="ms">
-                  <span className="mn" style={{ color: 'var(--text-accent)' }}>
-                    {property.neighborhoodScore.curbAppeal}
-                  </span>
-                  <span className="ml">Curb</span>
-                </div>
-                <div className="ms">
-                  <span className="mn" style={{ color: '#1D9E75' }}>
-                    {property.neighborhoodScore.streetVibe}
-                  </span>
-                  <span className="ml">Vibe</span>
-                </div>
-              </div>
-            </div>
-
-            {neighborhoodExpanded && neighborhoodDraft && (
-              <div style={{ padding: '4px 8px 10px 40px' }} onClick={(e) => e.stopPropagation()}>
-                {(['curbAppeal', 'streetVibe'] as const).map((key) => (
-                  <div className="fr" key={key}>
-                    <span className="frl">{key === 'curbAppeal' ? 'Curb appeal' : 'Street / block vibe'}</span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      step={1}
-                      value={neighborhoodDraft[key]}
-                      style={{ flex: 1 }}
-                      onChange={(e) => setNeighborhoodDraft({ ...neighborhoodDraft, [key]: Number(e.target.value) })}
-                    />
-                    <span className="frv">{neighborhoodDraft[key]}</span>
-                  </div>
-                ))}
-                <div style={{ margin: '8px 0' }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {FEELING_OPTIONS.map((feeling) => (
-                      <button
-                        key={feeling}
-                        className={`tag${neighborhoodDraft.feeling === feeling ? ' sb' : ''}`}
-                        onClick={() => setNeighborhoodDraft({ ...neighborhoodDraft, feeling })}
-                      >
-                        {feeling}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <textarea
-                  className="na"
-                  placeholder="Quick thought about the block, street noise, neighbors..."
-                  style={{ marginBottom: 8 }}
-                  value={neighborhoodDraft.note}
-                  onChange={(e) => setNeighborhoodDraft({ ...neighborhoodDraft, note: e.target.value })}
-                />
-                <button className="btn btnp btnf" disabled={updateNeighborhood.isPending} onClick={saveNeighborhoodDraft}>
-                  {updateNeighborhood.isPending ? 'Saving…' : 'Save changes'}
-                </button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>Neighborhood feel & priorities</div>
+            {property.neighborhoodScore ? (
+              <span className="badge bb" style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
+                {FEELING_LABEL[property.neighborhoodScore.feeling]}
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Not scored yet</span>
+            )}
+            {propertyMetrics.length > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                {property.metricScores.length} of {propertyMetrics.length} priorities scored
               </div>
             )}
-          </>
-        )}
-      </div>
-
-      <div className="div" />
-
-      <div className="slbl">Priorities</div>
-      <div className="card" style={{ padding: '10px 12px' }}>
-        {propertyMetrics.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>
-            <Icon name="ti-target" size={26} />
-            <div style={{ marginTop: 6 }}>No priorities set yet — add some from your profile.</div>
           </div>
-        ) : (
-          <>
-            <div className="rrow" style={{ cursor: 'pointer' }} onClick={togglePriorities}>
-              <div className="ri">
-                <Icon name="ti-target" size={17} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>What matters to us</div>
-                <span className="badge bb" style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
-                  {property.metricScores.length} of {propertyMetrics.length} scored
+          {property.neighborhoodScore && (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div className="ms">
+                <span className="mn" style={{ color: 'var(--text-accent)' }}>
+                  {property.neighborhoodScore.curbAppeal}
                 </span>
+                <span className="ml">Curb</span>
+              </div>
+              <div className="ms">
+                <span className="mn" style={{ color: '#1D9E75' }}>
+                  {property.neighborhoodScore.streetVibe}
+                </span>
+                <span className="ml">Vibe</span>
               </div>
             </div>
+          )}
+        </div>
 
-            {prioritiesExpanded && prioritiesDraft && (
-              <div style={{ padding: '4px 8px 10px 40px' }} onClick={(e) => e.stopPropagation()}>
+        {propertyExpanded && propertyDraft && (
+          <div style={{ padding: '4px 8px 10px 40px' }} onClick={(e) => e.stopPropagation()}>
+            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', margin: '4px 0' }}>Neighborhood</p>
+            {(['curbAppeal', 'streetVibe'] as const).map((key) => (
+              <div className="fr" key={key}>
+                <span className="frl">{key === 'curbAppeal' ? 'Curb appeal' : 'Street / block vibe'}</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={propertyDraft[key]}
+                  style={{ flex: 1 }}
+                  onChange={(e) => setPropertyDraft({ ...propertyDraft, [key]: Number(e.target.value) })}
+                />
+                <span className="frv">{propertyDraft[key]}</span>
+              </div>
+            ))}
+            <div style={{ margin: '8px 0' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {FEELING_OPTIONS.map((feeling) => (
+                  <button
+                    key={feeling}
+                    className={`tag${propertyDraft.feeling === feeling ? ' sb' : ''}`}
+                    onClick={() => setPropertyDraft({ ...propertyDraft, feeling })}
+                  >
+                    {feeling}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              className="na"
+              placeholder="Quick thought about the block, street noise, neighbors..."
+              style={{ marginBottom: 8 }}
+              value={propertyDraft.note}
+              onChange={(e) => setPropertyDraft({ ...propertyDraft, note: e.target.value })}
+            />
+
+            {propertyMetrics.length > 0 && (
+              <>
+                <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', margin: '10px 0 4px' }}>What matters to us</p>
                 {propertyMetrics.map((metric) => (
                   <div className="fr" key={metric.id}>
                     <span className="frl">{metric.label}</span>
@@ -366,19 +332,27 @@ export function VisitTab() {
                       min={1}
                       max={10}
                       step={1}
-                      value={prioritiesDraft[metric.id] ?? 5}
+                      value={propertyDraft.metricValues[metric.id] ?? 5}
                       style={{ flex: 1 }}
-                      onChange={(e) => setPrioritiesDraft({ ...prioritiesDraft, [metric.id]: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setPropertyDraft({ ...propertyDraft, metricValues: { ...propertyDraft.metricValues, [metric.id]: Number(e.target.value) } })
+                      }
                     />
-                    <span className="frv">{prioritiesDraft[metric.id] ?? 5}</span>
+                    <span className="frv">{propertyDraft.metricValues[metric.id] ?? 5}</span>
                   </div>
                 ))}
-                <button className="btn btnp btnf" disabled={updatePropertyMetrics.isPending} onClick={savePrioritiesDraft}>
-                  {updatePropertyMetrics.isPending ? 'Saving…' : 'Save changes'}
-                </button>
-              </div>
+              </>
             )}
-          </>
+
+            <button
+              className="btn btnp btnf"
+              style={{ marginTop: 8 }}
+              disabled={updateNeighborhood.isPending || updatePropertyMetrics.isPending}
+              onClick={savePropertyDraft}
+            >
+              {updateNeighborhood.isPending || updatePropertyMetrics.isPending ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
         )}
       </div>
 

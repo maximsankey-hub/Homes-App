@@ -13,7 +13,7 @@ customMetricsRouter.get('/', async (req, res) => {
 });
 
 customMetricsRouter.post('/', async (req, res) => {
-  const { label, category, scope, weight } = req.body ?? {};
+  const { label, category, scope, targetRoomName, weight } = req.body ?? {};
   if (!label || (category !== 'EMOTIONAL' && category !== 'FUNCTIONAL')) {
     res.status(400).json({ error: 'label and category (EMOTIONAL or FUNCTIONAL) are required' });
     return;
@@ -25,12 +25,18 @@ customMetricsRouter.post('/', async (req, res) => {
 
   const metric = await prisma.customMetric.upsert({
     where: { householdId_label: { householdId: req.householdId!, label } },
-    update: { category: category as MetricCategory, scope: (scope as MetricScope) ?? undefined, weight: typeof weight === 'number' ? weight : undefined },
+    update: {
+      category: category as MetricCategory,
+      scope: (scope as MetricScope) ?? undefined,
+      targetRoomName: targetRoomName ?? null,
+      weight: typeof weight === 'number' ? weight : undefined,
+    },
     create: {
       householdId: req.householdId!,
       label,
       category: category as MetricCategory,
       scope: (scope as MetricScope) ?? 'ROOM',
+      targetRoomName: targetRoomName ?? null,
       weight: typeof weight === 'number' ? weight : undefined,
     },
   });

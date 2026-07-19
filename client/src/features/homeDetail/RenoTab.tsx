@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { useUiStore } from '../../store/uiStore';
 import { CaptureButtons } from '../visitMode/CaptureButtons';
-import { useAssignRenovationRoom, useDeleteRenovation, useRenovations, useUploadRenovationMedia } from './useRenovations';
+import { useAssignRenovationRoom, useDeleteRenovation, useRenovations, useReorderRenovations, useUploadRenovationMedia } from './useRenovations';
 
 const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
   COSMETIC: { bg: '#EAF3DE', color: '#27500A' },
@@ -19,8 +19,17 @@ export function RenoTab() {
   const deleteRenovation = useDeleteRenovation(propertyId ?? '');
   const assignRoom = useAssignRenovationRoom(propertyId ?? '');
   const uploadMedia = useUploadRenovationMedia(propertyId ?? '');
+  const reorder = useReorderRenovations(propertyId ?? '');
 
   if (isLoading || !ideas) return <div>Loading…</div>;
+
+  const move = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= ideas.length) return;
+    const next = [...ideas];
+    [next[index], next[target]] = [next[target], next[index]];
+    reorder.mutate(next.map((i) => i.id));
+  };
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -38,7 +47,7 @@ export function RenoTab() {
   return (
     <div>
       <div className="slbl">Renovation ideas</div>
-      {ideas.map((idea) => {
+      {ideas.map((idea, index) => {
         const style = TYPE_STYLE[idea.type] ?? TYPE_STYLE.COSMETIC;
         const isOpen = expanded.has(idea.id);
         return (
@@ -128,6 +137,22 @@ export function RenoTab() {
               />
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <button
+                className="btn btns"
+                disabled={index === 0 || reorder.isPending}
+                onClick={() => move(index, -1)}
+                aria-label={`Move "${idea.title}" up`}
+              >
+                <Icon name="ti-chevron-up" size={14} />
+              </button>
+              <button
+                className="btn btns"
+                disabled={index === ideas.length - 1 || reorder.isPending}
+                onClick={() => move(index, 1)}
+                aria-label={`Move "${idea.title}" down`}
+              >
+                <Icon name="ti-chevron-down" size={14} />
+              </button>
               <button className="btn btns" style={{ flex: 1 }} onClick={() => toggle(idea.id)}>
                 {isOpen ? 'Hide details' : 'View details'}
               </button>

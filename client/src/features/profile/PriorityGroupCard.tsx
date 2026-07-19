@@ -7,9 +7,12 @@ const WEIGHT_COMMIT_DELAY_MS = 350;
 
 interface PriorityGroupCardProps {
   group: PriorityGroup;
+  // Only relevant for the Pets group: items with `requiresPetType` only show once that pet type
+  // is in this list. Ignored for every other group.
+  petTypes?: string[];
 }
 
-export function PriorityGroupCard({ group }: PriorityGroupCardProps) {
+export function PriorityGroupCard({ group, petTypes = [] }: PriorityGroupCardProps) {
   const { data: customMetrics } = useCustomMetrics();
   const createMetric = useCreateCustomMetric();
   const updateWeight = useUpdateCustomMetricWeight();
@@ -42,7 +45,10 @@ export function PriorityGroupCard({ group }: PriorityGroupCardProps) {
     if (existing) {
       deleteMetric.mutate(existing.id, { onSettled: () => setPending(item.key, false) });
     } else {
-      createMetric.mutate({ label: item.label, category: item.category, scope: 'PROPERTY' }, { onSettled: () => setPending(item.key, false) });
+      createMetric.mutate(
+        { label: item.label, category: item.category, scope: item.scope, targetRoomName: item.targetRoomName },
+        { onSettled: () => setPending(item.key, false) },
+      );
     }
   };
 
@@ -54,12 +60,19 @@ export function PriorityGroupCard({ group }: PriorityGroupCardProps) {
     }, WEIGHT_COMMIT_DELAY_MS);
   };
 
+  const visibleItems = group.items.filter((item) => !item.requiresPetType || petTypes.includes(item.requiresPetType));
+
   return (
     <div className="card" style={{ marginBottom: 10 }}>
       <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Icon name={group.icon} size={15} /> {group.title}
       </p>
-      {group.items.map((item) => {
+      {visibleItems.length === 0 && (
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Select a pet type above to see relevant questions here.
+        </span>
+      )}
+      {visibleItems.map((item) => {
         const existing = findMetric(item);
         const on = !!existing;
         const weight = weightDrafts[item.key] ?? existing?.weight ?? 5;
