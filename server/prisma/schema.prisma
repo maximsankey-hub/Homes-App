@@ -102,6 +102,10 @@ model CustomMetric {
   category    MetricCategory
   scope       MetricScope    @default(ROOM)
   targetRoomName String?
+  // Tags a metric as having been added via a priority topic's "add your own" row (matches a
+  // PRIORITY_GROUPS key on the client) rather than being a catalog item or a fully free-form
+  // one from the Profile screen's generic "Custom scoring metrics" card. Null for both of those.
+  topicKey    String?
   weight      Int            @default(5)
   createdAt   DateTime       @default(now())
 
@@ -193,6 +197,7 @@ model Scorer {
   notes              ScorerNote[]
   neighborhoodScores NeighborhoodScore[]
   propertyMetricScores PropertyMetricScore[]
+  styleSwipes StyleSwipe[]
 }
 
 model RoomScore {
@@ -300,6 +305,30 @@ model NearbyPlace {
   iconBg       String
   lat          Float?
   lng          Float?
+}
+
+// Curated content, shared across every household (not household-scoped) — a "Modern kitchen"
+// photo is the same regardless of who's looking at it. Only the swipe responses are personal.
+model StylePhoto {
+  id        String   @id @default(cuid())
+  roomType  String
+  styleName String
+  imageUrl  String
+  createdAt DateTime @default(now())
+
+  swipes StyleSwipe[]
+}
+
+model StyleSwipe {
+  id           String     @id @default(cuid())
+  scorerId     String
+  scorer       Scorer     @relation(fields: [scorerId], references: [id])
+  stylePhotoId String
+  stylePhoto   StylePhoto @relation(fields: [stylePhotoId], references: [id], onDelete: Cascade)
+  liked        Boolean
+  createdAt    DateTime   @default(now())
+
+  @@unique([scorerId, stylePhotoId])
 }
 
 model PreferenceProfile {

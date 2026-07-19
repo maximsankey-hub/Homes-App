@@ -50,6 +50,20 @@ export function useUpdateProperty(id: string) {
   });
 }
 
+export interface PropertyLookupResult {
+  sqft: number | null;
+  beds: number | null;
+  baths: number | null;
+  yearBuilt: number | null;
+  estValue: number | null;
+}
+
+export function useLookupPropertyDetails() {
+  return useMutation({
+    mutationFn: (address: string) => api.get<PropertyLookupResult | null>(`/properties/lookup?address=${encodeURIComponent(address)}`),
+  });
+}
+
 export function useDeleteProperty() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -6,6 +6,7 @@ import { aggregateSelfScores, emotionalAvgOf, functionalAvgOf, secondaryInsights
 import { getPropertyOverviewInsights } from '../services/aiInsights.js';
 import { buildPartnerComparison } from '../services/partnerComparison.js';
 import { geocodeAddress } from '../services/googleMaps.js';
+import { lookupPropertyDetails } from '../services/rentcast.js';
 
 export const propertiesRouter = Router();
 
@@ -86,6 +87,18 @@ propertiesRouter.post('/', async (req, res) => {
   });
 
   res.status(201).json(property);
+});
+
+// Mounted before GET /:id so "lookup" isn't swallowed as an id param.
+propertiesRouter.get('/lookup', async (req, res) => {
+  const address = typeof req.query.address === 'string' ? req.query.address : '';
+  if (!address.trim()) {
+    res.status(400).json({ error: 'address query param is required' });
+    return;
+  }
+
+  const result = await lookupPropertyDetails(address).catch(() => null);
+  res.json(result);
 });
 
 propertiesRouter.put('/:id', async (req, res) => {

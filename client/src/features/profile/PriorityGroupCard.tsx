@@ -20,6 +20,8 @@ export function PriorityGroupCard({ group, petTypes = [] }: PriorityGroupCardPro
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
   const [weightDrafts, setWeightDrafts] = useState<Record<string, number>>({});
   const commitTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [newLabel, setNewLabel] = useState('');
+  const [newCategory, setNewCategory] = useState<'EMOTIONAL' | 'FUNCTIONAL'>('EMOTIONAL');
 
   useEffect(() => {
     const timers = commitTimers.current;
@@ -61,6 +63,13 @@ export function PriorityGroupCard({ group, petTypes = [] }: PriorityGroupCardPro
   };
 
   const visibleItems = group.items.filter((item) => !item.requiresPetType || petTypes.includes(item.requiresPetType));
+  const customTopicMetrics = customMetrics?.filter((m) => m.topicKey === group.key) ?? [];
+
+  const handleAddCustom = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    createMetric.mutate({ label, category: newCategory, scope: 'PROPERTY', topicKey: group.key }, { onSuccess: () => setNewLabel('') });
+  };
 
   return (
     <div className="card" style={{ marginBottom: 10 }}>
@@ -107,6 +116,71 @@ export function PriorityGroupCard({ group, petTypes = [] }: PriorityGroupCardPro
           </div>
         );
       })}
+      {customTopicMetrics.map((metric) => {
+        const weight = weightDrafts[metric.id] ?? metric.weight;
+        return (
+          <div key={metric.id} style={{ padding: '6px 0', borderTop: '0.5px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: 13 }}>
+                {metric.label}{' '}
+                <span className={`badge ${metric.category === 'EMOTIONAL' ? 'bp' : 'bt'}`}>
+                  {metric.category === 'EMOTIONAL' ? 'Emotional' : 'Functional'}
+                </span>
+              </span>
+              <button
+                className="btn btns"
+                style={{ flexShrink: 0, color: 'var(--text-danger)' }}
+                onClick={() => deleteMetric.mutate(metric.id)}
+                aria-label={`Delete ${metric.label}`}
+              >
+                <Icon name="ti-trash" size={13} />
+              </button>
+            </div>
+            <div className="fr">
+              <span className="frl">Importance</span>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={weight}
+                style={{ flex: 1 }}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setWeightDrafts((prev) => ({ ...prev, [metric.id]: v }));
+                  clearTimeout(commitTimers.current[metric.id]);
+                  commitTimers.current[metric.id] = setTimeout(() => updateWeight.mutate({ id: metric.id, weight: v }), WEIGHT_COMMIT_DELAY_MS);
+                }}
+              />
+              <span className="frv">{weight}</span>
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '0.5px solid var(--border)' }}>
+        <input
+          type="text"
+          placeholder="+ Add your own question"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          style={{ marginBottom: 6 }}
+        />
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+          {(['EMOTIONAL', 'FUNCTIONAL'] as const).map((cat) => (
+            <button key={cat} className={`tag${newCategory === cat ? ' sb' : ''}`} onClick={() => setNewCategory(cat)}>
+              {cat === 'EMOTIONAL' ? 'Emotional' : 'Functional'}
+            </button>
+          ))}
+          <button
+            className="btn btns btnp"
+            style={{ marginLeft: 'auto' }}
+            disabled={!newLabel.trim() || createMetric.isPending}
+            onClick={handleAddCustom}
+          >
+            <Icon name="ti-plus" size={13} /> Add
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

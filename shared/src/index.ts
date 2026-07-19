@@ -5,3 +5,4 @@ export * from './types/roomScore.js';
 export * from './types/property.js';
 export * from './types/profile.js';
 export * from './types/listing.js';
+export * from './types/style.js';

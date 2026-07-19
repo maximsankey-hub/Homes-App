@@ -13,7 +13,7 @@ customMetricsRouter.get('/', async (req, res) => {
 });
 
 customMetricsRouter.post('/', async (req, res) => {
-  const { label, category, scope, targetRoomName, weight } = req.body ?? {};
+  const { label, category, scope, targetRoomName, topicKey, weight } = req.body ?? {};
   if (!label || (category !== 'EMOTIONAL' && category !== 'FUNCTIONAL')) {
     res.status(400).json({ error: 'label and category (EMOTIONAL or FUNCTIONAL) are required' });
     return;
@@ -29,6 +29,7 @@ customMetricsRouter.post('/', async (req, res) => {
       category: category as MetricCategory,
       scope: (scope as MetricScope) ?? undefined,
       targetRoomName: targetRoomName ?? null,
+      topicKey: topicKey ?? null,
       weight: typeof weight === 'number' ? weight : undefined,
     },
     create: {
@@ -37,6 +38,7 @@ customMetricsRouter.post('/', async (req, res) => {
       category: category as MetricCategory,
       scope: (scope as MetricScope) ?? 'ROOM',
       targetRoomName: targetRoomName ?? null,
+      topicKey: topicKey ?? null,
       weight: typeof weight === 'number' ? weight : undefined,
     },
   });

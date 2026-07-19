@@ -14,6 +14,7 @@ import { neighborhoodScoreRouter } from './routes/neighborhoodScore.js';
 import { propertyMetricScoreRouter } from './routes/propertyMetricScores.js';
 import { householdRouter } from './routes/household.js';
 import { customMetricsRouter } from './routes/customMetrics.js';
+import { stylePhotosRouter } from './routes/stylePhotos.js';
 import { requireAuth, requireHousehold } from './middleware/auth.js';
 import { clientDistDir } from './lib/paths.js';
 import { prisma } from './lib/prisma.js';
@@ -58,6 +59,7 @@ app.use('/api', neighborhoodScoreRouter);
 app.use('/api', propertyMetricScoreRouter);
 app.use('/api/listing', listingRouter);
 app.use('/api/custom-metrics', customMetricsRouter);
+app.use('/api', stylePhotosRouter);
 
 // Local-only convenience: `npm run build && npm start` previews the production
 // client build without Vercel. On Vercel, static hosting is handled separately

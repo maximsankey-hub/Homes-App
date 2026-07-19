@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/common/Icon';
 import { PolaritySlider } from '../../components/common/PolaritySlider';
+import { useUiStore } from '../../store/uiStore';
 import { useProfile, useUpdateProfile, type UpdateProfileInput } from './useProfile';
 import { useCreateCustomMetric, useCustomMetrics, useDeleteCustomMetric, useUpdateCustomMetricWeight } from './useCustomMetrics';
 import { AboutYourSearchFields } from './AboutYourSearchFields';
 import { PriorityGroupCard } from './PriorityGroupCard';
+import { useStyleProfile } from './useStylePhotos';
 import { PET_TYPE_OPTIONS, PRIORITY_GROUPS } from '../onboarding/priorityQuestions';
 
 const COMMIT_DELAY_MS = 350;
@@ -13,6 +15,8 @@ const COMMIT_DELAY_MS = 350;
 export function ProfileScreen() {
   const { data: profile, isLoading } = useProfile();
   const { data: customMetrics } = useCustomMetrics();
+  const { data: styleProfile } = useStyleProfile();
+  const openModal = useUiStore((s) => s.openModal);
   const updateProfile = useUpdateProfile();
   const updateWeight = useUpdateCustomMetricWeight();
   const createMetric = useCreateCustomMetric();
@@ -236,6 +240,37 @@ export function ProfileScreen() {
           </div>
         );
       })}
+
+      <div className="div" />
+
+      <div className="slbl">Style profile</div>
+      <div className="card" style={{ marginBottom: 10 }}>
+        {(!styleProfile || styleProfile.length === 0) && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            No style photos to swipe through yet — this catalog gets built out via a one-time setup step.
+          </span>
+        )}
+        {styleProfile?.map((room, i) => (
+          <div
+            key={room.roomType}
+            className="rrow"
+            style={{ cursor: 'pointer', borderTop: i > 0 ? '0.5px solid var(--border)' : undefined, paddingTop: i > 0 ? 8 : 0 }}
+            onClick={() => openModal('styleSwipe', { roomType: room.roomType })}
+          >
+            <div className="ri">
+              <Icon name="ti-sparkles" size={17} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{room.roomType}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                {room.swipedCount} of {room.totalPhotos} photos swiped
+                {room.topStyle ? ` — leaning ${room.topStyle}` : ''}
+              </div>
+            </div>
+            <Icon name="ti-chevron-right" size={14} />
+          </div>
+        ))}
+      </div>
 
       <div className="div" />
 

@@ -29,6 +29,7 @@ export function useCreateCustomMetric() {
       category: 'EMOTIONAL' | 'FUNCTIONAL';
       scope?: 'ROOM' | 'PROPERTY';
       targetRoomName?: string | null;
+      topicKey?: string | null;
       weight?: number;
     }) => api.post<CustomMetric>('/custom-metrics', input),
     onMutate: (input) =>
@@ -40,6 +41,7 @@ export function useCreateCustomMetric() {
           category: input.category,
           scope: input.scope ?? 'ROOM',
           targetRoomName: input.targetRoomName ?? null,
+          topicKey: input.topicKey ?? null,
           weight: input.weight ?? 5,
         },
       ]),

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { PropertyDetail } from 'shared';
 import { useUiStore } from '../../store/uiStore';
-import { useCreateProperty, useUpdateProperty } from './useProperties';
+import { Icon } from '../../components/common/Icon';
+import { useCreateProperty, useLookupPropertyDetails, useUpdateProperty } from './useProperties';
 
 export function AddPropertyModal() {
   const closeModal = useUiStore((s) => s.closeModal);
@@ -13,6 +14,7 @@ export function AddPropertyModal() {
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty(existing?.id ?? '');
   const saveProperty = isEdit ? updateProperty : createProperty;
+  const lookup = useLookupPropertyDetails();
 
   const [address, setAddress] = useState(existing?.address ?? '');
   const [city, setCity] = useState(existing?.city ?? '');
@@ -21,8 +23,29 @@ export function AddPropertyModal() {
   const [sqft, setSqft] = useState(existing ? String(existing.sqft) : '');
   const [beds, setBeds] = useState(existing ? String(existing.beds) : '');
   const [baths, setBaths] = useState(existing ? String(existing.baths) : '');
+  const [yearBuilt, setYearBuilt] = useState(existing?.yearBuilt ? String(existing.yearBuilt) : '');
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
 
   const canSubmit = address.trim().length > 0 && Number(listingPrice) > 0;
+
+  const handleAutoFill = async () => {
+    setLookupMessage(null);
+    const fullAddress = [address, city, state].filter(Boolean).join(', ');
+    const result = await lookup.mutateAsync(fullAddress);
+    if (!result) {
+      setLookupMessage("Couldn't find details for that address — check it and try again, or enter manually.");
+      return;
+    }
+    if (result.sqft) setSqft(String(result.sqft));
+    if (result.beds) setBeds(String(result.beds));
+    if (result.baths) setBaths(String(result.baths));
+    if (result.yearBuilt) setYearBuilt(String(result.yearBuilt));
+    setLookupMessage(
+      result.estValue
+        ? `Filled in what we found. Estimated value: $${result.estValue.toLocaleString()} (list price is still yours to enter).`
+        : 'Filled in what we found.',
+    );
+  };
 
   const submit = () => {
     if (!canSubmit) return;
@@ -35,6 +58,7 @@ export function AddPropertyModal() {
         sqft: sqft ? Number(sqft) : undefined,
         beds: beds ? Number(beds) : undefined,
         baths: baths ? Number(baths) : undefined,
+        yearBuilt: yearBuilt ? Number(yearBuilt) : undefined,
       },
       { onSuccess: () => closeModal() },
     );
@@ -54,6 +78,17 @@ export function AddPropertyModal() {
           <input type="text" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} style={{ flex: 1 }} />
           <input type="text" placeholder="State" value={state} onChange={(e) => setState(e.target.value)} style={{ width: 70 }} />
         </div>
+        <button
+          className="btn btns"
+          style={{ marginBottom: 8 }}
+          disabled={!address.trim() || lookup.isPending}
+          onClick={handleAutoFill}
+        >
+          <Icon name="ti-sparkles" size={13} /> {lookup.isPending ? 'Looking up…' : 'Auto-fill from address'}
+        </button>
+        {lookupMessage && (
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>{lookupMessage}</p>
+        )}
         <input
           type="text"
           placeholder="Listing price, e.g. 650000"
@@ -65,6 +100,12 @@ export function AddPropertyModal() {
           <input type="text" placeholder="Beds" value={beds} onChange={(e) => setBeds(e.target.value.replace(/[^0-9]/g, ''))} />
           <input type="text" placeholder="Baths" value={baths} onChange={(e) => setBaths(e.target.value.replace(/[^0-9]/g, ''))} />
         </div>
+        <input
+          type="text"
+          placeholder="Year built"
+          value={yearBuilt}
+          onChange={(e) => setYearBuilt(e.target.value.replace(/[^0-9]/g, ''))}
+        />
         {saveProperty.isError && (
           <p style={{ fontSize: 12, color: 'var(--text-danger)', marginBottom: 8 }}>
             Couldn't {isEdit ? 'save' : 'add'} property. Try again.

@@ -10,6 +10,7 @@ export type ModalId =
   | 'addImprovement'
   | 'tagMedia'
   | 'viewMedia'
+  | 'styleSwipe'
   | null;
 
 interface UiState {

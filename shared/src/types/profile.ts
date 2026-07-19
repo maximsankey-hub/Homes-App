@@ -30,6 +30,7 @@ export interface CustomMetric {
   category: MetricCategory;
   scope: MetricScope;
   targetRoomName: string | null;
+  topicKey: string | null;
   weight: number;
 }
 
