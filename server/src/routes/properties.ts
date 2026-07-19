@@ -6,7 +6,7 @@ import { aggregateSelfScores, emotionalAvgOf, functionalAvgOf, secondaryInsights
 import { getPropertyOverviewInsights } from '../services/aiInsights.js';
 import { buildPartnerComparison } from '../services/partnerComparison.js';
 import { geocodeAddress } from '../services/googleMaps.js';
-import { lookupPropertyDetails } from '../services/rentcast.js';
+import { getRentcastUsage, lookupPropertyDetails } from '../services/rentcast.js';
 
 export const propertiesRouter = Router();
 
@@ -89,7 +89,12 @@ propertiesRouter.post('/', async (req, res) => {
   res.status(201).json(property);
 });
 
-// Mounted before GET /:id so "lookup" isn't swallowed as an id param.
+// Mounted before GET /:id so "lookup"/"lookup/usage" aren't swallowed as an id param.
+propertiesRouter.get('/lookup/usage', async (_req, res) => {
+  const usage = await getRentcastUsage();
+  res.json(usage);
+});
+
 propertiesRouter.get('/lookup', async (req, res) => {
   const address = typeof req.query.address === 'string' ? req.query.address : '';
   if (!address.trim()) {
@@ -97,8 +102,9 @@ propertiesRouter.get('/lookup', async (req, res) => {
     return;
   }
 
-  const result = await lookupPropertyDetails(address).catch(() => null);
-  res.json(result);
+  const lookup = await lookupPropertyDetails(address).catch(() => ({ result: null, limitReached: false }));
+  const usage = await getRentcastUsage();
+  res.json({ ...lookup, usage });
 });
 
 propertiesRouter.put('/:id', async (req, res) => {

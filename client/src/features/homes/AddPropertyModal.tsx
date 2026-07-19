@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { PropertyDetail } from 'shared';
 import { useUiStore } from '../../store/uiStore';
 import { Icon } from '../../components/common/Icon';
-import { useCreateProperty, useLookupPropertyDetails, useUpdateProperty } from './useProperties';
+import { useCreateProperty, useLookupPropertyDetails, useRentcastUsage, useUpdateProperty } from './useProperties';
 
 export function AddPropertyModal() {
   const closeModal = useUiStore((s) => s.closeModal);
@@ -15,6 +15,7 @@ export function AddPropertyModal() {
   const updateProperty = useUpdateProperty(existing?.id ?? '');
   const saveProperty = isEdit ? updateProperty : createProperty;
   const lookup = useLookupPropertyDetails();
+  const { data: usage } = useRentcastUsage();
 
   const [address, setAddress] = useState(existing?.address ?? '');
   const [city, setCity] = useState(existing?.city ?? '');
@@ -31,7 +32,11 @@ export function AddPropertyModal() {
   const handleAutoFill = async () => {
     setLookupMessage(null);
     const fullAddress = [address, city, state].filter(Boolean).join(', ');
-    const result = await lookup.mutateAsync(fullAddress);
+    const { result, limitReached } = await lookup.mutateAsync(fullAddress);
+    if (limitReached) {
+      setLookupMessage(`Hit your monthly RentCast limit (${usage?.limit ?? 50} calls) — enter details manually, or raise the limit next month.`);
+      return;
+    }
     if (!result) {
       setLookupMessage("Couldn't find details for that address — check it and try again, or enter manually.");
       return;
@@ -46,6 +51,8 @@ export function AddPropertyModal() {
         : 'Filled in what we found.',
     );
   };
+
+  const atLimit = usage ? usage.remaining <= 0 : false;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -78,14 +85,20 @@ export function AddPropertyModal() {
           <input type="text" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} style={{ flex: 1 }} />
           <input type="text" placeholder="State" value={state} onChange={(e) => setState(e.target.value)} style={{ width: 70 }} />
         </div>
-        <button
-          className="btn btns"
-          style={{ marginBottom: 8 }}
-          disabled={!address.trim() || lookup.isPending}
-          onClick={handleAutoFill}
-        >
-          <Icon name="ti-sparkles" size={13} /> {lookup.isPending ? 'Looking up…' : 'Auto-fill from address'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <button
+            className="btn btns"
+            disabled={!address.trim() || lookup.isPending || atLimit}
+            onClick={handleAutoFill}
+          >
+            <Icon name="ti-sparkles" size={13} /> {lookup.isPending ? 'Looking up…' : 'Auto-fill from address'}
+          </button>
+          {usage && (
+            <span style={{ fontSize: 10, color: atLimit ? 'var(--text-danger)' : 'var(--text-muted)' }}>
+              {usage.count} of {usage.limit} used this month
+            </span>
+          )}
+        </div>
         {lookupMessage && (
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>{lookupMessage}</p>
         )}

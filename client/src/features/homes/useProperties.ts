@@ -58,9 +58,31 @@ export interface PropertyLookupResult {
   estValue: number | null;
 }
 
+export interface ApiUsageStatus {
+  count: number;
+  limit: number;
+  remaining: number;
+  period: string;
+}
+
+export interface PropertyLookupResponse {
+  result: PropertyLookupResult | null;
+  limitReached: boolean;
+  usage: ApiUsageStatus;
+}
+
 export function useLookupPropertyDetails() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (address: string) => api.get<PropertyLookupResult | null>(`/properties/lookup?address=${encodeURIComponent(address)}`),
+    mutationFn: (address: string) => api.get<PropertyLookupResponse>(`/properties/lookup?address=${encodeURIComponent(address)}`),
+    onSuccess: (data) => queryClient.setQueryData(['rentcastUsage'], data.usage),
+  });
+}
+
+export function useRentcastUsage() {
+  return useQuery({
+    queryKey: ['rentcastUsage'],
+    queryFn: () => api.get<ApiUsageStatus>('/properties/lookup/usage'),
   });
 }
 
