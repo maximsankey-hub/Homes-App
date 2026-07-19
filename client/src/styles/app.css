@@ -32,6 +32,7 @@
 .ff{height:100%;border-radius:3px;background:var(--fill-accent);}
 .fv{font-size:12px;font-weight:500;width:28px;text-align:right;}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:none;cursor:pointer;font-size:13px;color:var(--text-primary);font-family:var(--font-sans);}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
 .btnp{background:var(--fill-accent);color:var(--on-accent);border-color:transparent;}
 .btnt{background:#1D9E75;color:#fff;border-color:transparent;}
 .btns{padding:5px 10px;font-size:12px;}

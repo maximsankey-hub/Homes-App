@@ -109,19 +109,37 @@ export function AddPropertyModal() {
           onChange={(e) => setListingPrice(e.target.value.replace(/[^0-9]/g, ''))}
         />
         <div style={{ display: 'flex', gap: 8 }}>
-          <input type="text" placeholder="Sq ft" value={sqft} onChange={(e) => setSqft(e.target.value.replace(/[^0-9]/g, ''))} />
-          <input type="text" placeholder="Beds" value={beds} onChange={(e) => setBeds(e.target.value.replace(/[^0-9]/g, ''))} />
-          <input type="text" placeholder="Baths" value={baths} onChange={(e) => setBaths(e.target.value.replace(/[^0-9]/g, ''))} />
+          <label style={{ flex: 1, fontSize: 11, color: 'var(--text-secondary)' }}>
+            Sq ft
+            <input type="text" placeholder="e.g. 2400" value={sqft} onChange={(e) => setSqft(e.target.value.replace(/[^0-9]/g, ''))} style={{ marginTop: 3 }} />
+          </label>
+          <label style={{ flex: 1, fontSize: 11, color: 'var(--text-secondary)' }}>
+            Bedrooms
+            <input type="text" placeholder="e.g. 4" value={beds} onChange={(e) => setBeds(e.target.value.replace(/[^0-9]/g, ''))} style={{ marginTop: 3 }} />
+          </label>
+          <label style={{ flex: 1, fontSize: 11, color: 'var(--text-secondary)' }}>
+            Bathrooms
+            <input type="text" placeholder="e.g. 3" value={baths} onChange={(e) => setBaths(e.target.value.replace(/[^0-9]/g, ''))} style={{ marginTop: 3 }} />
+          </label>
         </div>
-        <input
-          type="text"
-          placeholder="Year built"
-          value={yearBuilt}
-          onChange={(e) => setYearBuilt(e.target.value.replace(/[^0-9]/g, ''))}
-        />
+        <label style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+          Year built
+          <input
+            type="text"
+            placeholder="e.g. 1962"
+            value={yearBuilt}
+            onChange={(e) => setYearBuilt(e.target.value.replace(/[^0-9]/g, ''))}
+            style={{ marginTop: 3 }}
+          />
+        </label>
         {saveProperty.isError && (
           <p style={{ fontSize: 12, color: 'var(--text-danger)', marginBottom: 8 }}>
             Couldn't {isEdit ? 'save' : 'add'} property. Try again.
+          </p>
+        )}
+        {!canSubmit && (
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+            Enter an address and a listing price to continue.
           </p>
         )}
         <div style={{ display: 'flex', gap: 8 }}>
